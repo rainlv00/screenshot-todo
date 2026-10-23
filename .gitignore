@@ -1,0 +1,30 @@
+# 依赖
+node_modules/
+
+# 构建产物（可重新生成，体积大）
+dist/
+dist-electron/
+release/
+
+# 本地数据（用户的截图和数据库，绝不入库）
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# 日志与调试产物
+*.log
+crash.log
+shot.png
+shot-*.png
+desk.png
+check-*.png
+probe-*.png
+
+# 图标候选方案（留源码，不留产出）
+build/candidates/
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
+desktop.ini

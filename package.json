@@ -1,0 +1,60 @@
+{
+  "name": "screenshot-todo",
+  "productName": "截图待办",
+  "version": "1.0.0",
+  "private": true,
+  "description": "截图即待办：监听剪贴板，微信截图自动入库",
+  "author": "WDY",
+  "license": "MIT",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --format=cjs --external:electron --outdir=dist-electron --target=node22 --log-level=warning",
+    "build:renderer": "vite build",
+    "build": "npm run build:electron && npm run build:renderer",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc --noEmit",
+    "dev": "npm run build:electron && vite",
+    "shot": "npm run build && electron . --shot",
+    "pack": "node scripts/pack.js",
+    "dist": "npm run build && node scripts/pack.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "app-builder-bin": "^4.2.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "rcedit": "^5.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "build": {
+    "appId": "com.wdy.screenshottodo",
+    "productName": "截图待办",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "build/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icon256.png"
+    },
+    "portable": {
+      "artifactName": "截图待办-${version}.exe"
+    }
+  }
+}
