@@ -91,6 +91,40 @@ export function initDb(dataDir: string): void {
       value TEXT NOT NULL
     );
   `)
+
+  // ---- 文件柜 ----
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS file_categories (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      exts       TEXT NOT NULL DEFAULT '',
+      color      TEXT NOT NULL DEFAULT 'none',
+      builtin    INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+  `)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS files (
+      id          TEXT PRIMARY KEY,
+      path        TEXT NOT NULL UNIQUE,
+      name        TEXT NOT NULL,
+      ext         TEXT NOT NULL DEFAULT '',
+      size        INTEGER NOT NULL DEFAULT 0,
+      mtime       INTEGER NOT NULL DEFAULT 0,
+      category_id TEXT,
+      pinned      INTEGER NOT NULL DEFAULT 0,
+      missing     INTEGER NOT NULL DEFAULT 0,
+      added_at    INTEGER NOT NULL,
+      last_seen   INTEGER NOT NULL DEFAULT 0
+    );
+  `)
+  db.exec('CREATE INDEX IF NOT EXISTS idx_files_cat ON files(category_id, added_at DESC)')
+}
+
+/** 供其它模块（如文件柜）复用同一个连接 */
+export function getDb(): DatabaseSync {
+  return db
 }
 
 /* ---------------- settings ---------------- */

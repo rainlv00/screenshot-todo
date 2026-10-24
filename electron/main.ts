@@ -41,6 +41,25 @@ import { saveImage, deleteImageFiles, sha1 } from './store'
 import { startDailyReminder, type ReminderCtl } from './reminder'
 import type { Prefs, ToastPayload } from '../shared/types'
 import { checkForUpdate, downloadUpdate, installUpdate, openReleasePage } from './updater'
+import {
+  ensurePresetCategories,
+  listCategories,
+  addCategory,
+  renameCategory,
+  deleteCategory,
+  listFiles,
+  countFiles,
+  addFileByPath,
+  removeFile,
+  setFilePinned,
+  setFileCategory,
+  refreshMissing,
+  scanDirs,
+  getWatchDirs,
+  setWatchDirs,
+  getAutoScan,
+  setAutoScan
+} from './files'
 
 const isDev = !app.isPackaged
 const APP_ROOT = app.getAppPath()
@@ -290,6 +309,10 @@ async function runDevHook(mode: string): Promise<void> {
         await js(
           `window.__openCropper && window.__openCropper('.bgpick.jpg', ${Number(process.env.WDY_SHOT_CROP_W) || 1400}, ${Number(process.env.WDY_SHOT_CROP_H) || 900})`
         )
+        await wait(800)
+      }
+      if (process.env.WDY_SHOT_FILES === '1') {
+        await js(`document.querySelectorAll('.view-switch button')[1]?.click()`)
         await wait(800)
       }
       if (process.env.WDY_SHOT_HOVER === '1') {
@@ -891,6 +914,37 @@ function registerIpc(): void {
     return next
   })
 
+  /* ---- 文件柜 ---- */
+  ipcMain.handle('files:categories', () => listCategories())
+  ipcMain.handle('files:list', (_e, categoryId: string | null) => listFiles(categoryId))
+  ipcMain.handle('files:count', () => countFiles())
+  ipcMain.handle('files:addPaths', (_e, paths: string[]) => {
+    let added = 0
+    for (const p of paths) {
+      if (addFileByPath(p)) added++
+    }
+    return added
+  })
+  ipcMain.handle('files:remove', (_e, id: string) => removeFile(id))
+  ipcMain.handle('files:pin', (_e, id: string, pinned: boolean) => setFilePinned(id, pinned))
+  ipcMain.handle('files:setCategory', (_e, id: string, cat: string) => setFileCategory(id, cat))
+  ipcMain.handle('files:addCategory', (_e, name: string, exts: string[]) => addCategory(name, exts))
+  ipcMain.handle('files:renameCategory', (_e, id: string, name: string) => renameCategory(id, name))
+  ipcMain.handle('files:deleteCategory', (_e, id: string) => deleteCategory(id))
+  ipcMain.handle('files:scan', () => scanDirs())
+  ipcMain.handle('files:refreshMissing', () => refreshMissing())
+  ipcMain.handle('files:open', (_e, id: string) => {
+    const f = listFiles().find((x) => x.id === id)
+    if (f) void shell.openPath(f.path)
+  })
+  ipcMain.handle('files:reveal', (_e, id: string) => {
+    const f = listFiles().find((x) => x.id === id)
+    if (f) shell.showItemInFolder(f.path)
+  })
+  ipcMain.handle('files:getDirs', () => getWatchDirs())
+  ipcMain.handle('files:setDirs', (_e, dirs: string[]) => setWatchDirs(dirs))
+  ipcMain.handle('files:getAutoScan', () => getAutoScan())
+  ipcMain.handle('files:setAutoScan', (_e, on: boolean) => setAutoScan(on))
   ipcMain.handle('app:checkUpdate', () => checkForUpdate())
   ipcMain.handle('app:downloadUpdate', async (_e, info) =>
     downloadUpdate(info, (s) => mainWin?.webContents.send('update:progress', s))
@@ -1044,6 +1098,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     migrateLegacyData()
     initDb(DATA_DIR)
+    ensurePresetCategories()
 
     // 上次没删干净的文件，开机清掉
     for (const rel of purgeDeleted()) {
@@ -1068,6 +1123,14 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc()
     ensureStartMenuShortcut()
     createMainWindow()
+  // 截图用：直接扫一遍目录，再把界面切到文件视图
+  if (process.env.WDY_SHOT_FILES === '1') {
+    try {
+      scanDirs()
+    } catch {
+      /* 测试用，忽略 */
+    }
+  }
     createTray()
     startClipboardWatch()
     // 截图/测试时可以关掉，避免与正在运行的实例抢快捷键

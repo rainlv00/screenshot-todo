@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { BgPickResult, ListResult, Prefs, ToastPayload, UpdateInfo } from '../shared/types'
 
 function imgUrl(relPath: string): string {
@@ -23,6 +23,38 @@ const api = {
   pause: (minutes: number): Promise<Prefs> => ipcRenderer.invoke('app:pause', minutes),
   hotkeyAvailable: (acc: string): Promise<{ ok: boolean; reason?: 'invalid' | 'taken' | 'error' }> =>
     ipcRenderer.invoke('app:hotkeyAvailable', acc),
+
+  /** 拖进来的 File 对象要转成真实磁盘路径（Electron 32+ 去掉了 file.path） */
+  getPathForFile: (file: File): string => {
+    try {
+      return webUtils.getPathForFile(file)
+    } catch {
+      return ''
+    }
+  },
+
+  // ---- 文件柜 ----
+  files: {
+    categories: (): Promise<any[]> => ipcRenderer.invoke('files:categories'),
+    list: (categoryId: string | null): Promise<any[]> => ipcRenderer.invoke('files:list', categoryId),
+    count: (): Promise<number> => ipcRenderer.invoke('files:count'),
+    addPaths: (paths: string[]): Promise<number> => ipcRenderer.invoke('files:addPaths', paths),
+    remove: (id: string): Promise<void> => ipcRenderer.invoke('files:remove', id),
+    pin: (id: string, pinned: boolean): Promise<void> => ipcRenderer.invoke('files:pin', id, pinned),
+    setCategory: (id: string, cat: string): Promise<void> => ipcRenderer.invoke('files:setCategory', id, cat),
+    addCategory: (name: string, exts: string[]): Promise<any> => ipcRenderer.invoke('files:addCategory', name, exts),
+    renameCategory: (id: string, name: string): Promise<void> =>
+      ipcRenderer.invoke('files:renameCategory', id, name),
+    deleteCategory: (id: string): Promise<boolean> => ipcRenderer.invoke('files:deleteCategory', id),
+    scan: (): Promise<{ added: number; scanned: number }> => ipcRenderer.invoke('files:scan'),
+    refreshMissing: (): Promise<number> => ipcRenderer.invoke('files:refreshMissing'),
+    open: (id: string): Promise<void> => ipcRenderer.invoke('files:open', id),
+    reveal: (id: string): Promise<void> => ipcRenderer.invoke('files:reveal', id),
+    getDirs: (): Promise<string[]> => ipcRenderer.invoke('files:getDirs'),
+    setDirs: (dirs: string[]): Promise<void> => ipcRenderer.invoke('files:setDirs', dirs),
+    getAutoScan: (): Promise<boolean> => ipcRenderer.invoke('files:getAutoScan'),
+    setAutoScan: (on: boolean): Promise<void> => ipcRenderer.invoke('files:setAutoScan', on)
+  },
 
   // ---- 更新 ----
   checkUpdate: (): Promise<UpdateInfo | null> => ipcRenderer.invoke('app:checkUpdate'),
