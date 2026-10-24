@@ -282,6 +282,10 @@ async function runDevHook(mode: string): Promise<void> {
         await js(`window.__openHelp && window.__openHelp()`)
         await wait(700)
       }
+      if (process.env.WDY_SHOT_CAL === '1') {
+        await js(`document.querySelector('.festival-bar')?.click()`)
+        await wait(700)
+      }
       if (process.env.WDY_SHOT_CROP === '1') {
         await js(
           `window.__openCropper && window.__openCropper('.bgpick.jpg', ${Number(process.env.WDY_SHOT_CROP_W) || 1400}, ${Number(process.env.WDY_SHOT_CROP_H) || 900})`

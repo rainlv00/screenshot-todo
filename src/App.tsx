@@ -8,6 +8,7 @@ import { TopBar } from './components/TopBar'
 import { HelpModal } from './components/HelpModal'
 import { UpdateButton } from './components/UpdateButton'
 import { FestivalBar } from './components/FestivalBar'
+import { CalendarModal } from './components/CalendarModal'
 import { BgCropper } from './components/BgCropper'
 import { dateText, dayKey } from './lib/format'
 import { prettyAccel } from './components/HotkeyField'
@@ -44,6 +45,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [cropping, setCropping] = useState<{ file: string; width: number; height: number } | null>(null)
+  const [calOpen, setCalOpen] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
@@ -212,12 +214,20 @@ export default function App() {
     setDragId(null)
     setOverId(null)
     if (!from || from === id) return
+    const fromTask = data.pending.find((t) => t.id === from)
+    const toTask = data.pending.find((t) => t.id === id)
+    if (!fromTask || !toTask) return
+    if (fromTask.pinned || toTask.pinned) {
+      say('置顶的待办不参与排序，先取消置顶')
+      return
+    }
     const ids = data.pending.map((t) => t.id)
     const i = ids.indexOf(from)
     const j = ids.indexOf(id)
     if (i < 0 || j < 0) return
     const [moved] = ids.splice(i, 1)
-    ids.splice(j, 0, moved)
+    // 删除后目标索引会前移，往下拖时要减一，才能真正落到目标位置
+    ids.splice(i < j ? j - 1 : j, 0, moved)
     void window.api.reorder(ids)
   }
 
@@ -489,7 +499,7 @@ export default function App() {
           )}
         </main>
 
-        <FestivalBar />
+        <FestivalBar onOpen={() => setCalOpen(true)} />
 
         <footer className="footer">
           <button
@@ -527,6 +537,7 @@ export default function App() {
         />
       )}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {calOpen && <CalendarModal onClose={() => setCalOpen(false)} />}
       {cropping && (
         <BgCropper
           file={cropping.file}

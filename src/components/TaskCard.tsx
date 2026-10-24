@@ -51,6 +51,7 @@ export function TaskCard({
   const [dueOpen, setDueOpen] = useState(false)
   const [colorOpen, setColorOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const downTarget = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (editing) inputRef.current?.select()
@@ -72,8 +73,16 @@ export function TaskCard({
         task.pinned ? 'is-pinned' : ''
       } ${dragging ? 'is-dragging' : ''} ${dragOver ? 'is-over' : ''}`}
       draggable={canDrag}
+      onMouseDown={(e) => {
+        downTarget.current = e.target as HTMLElement
+      }}
       onDragStart={(e) => {
         if (!canDrag) return
+        // 从按钮 / 输入框上按下时不进入拖动，否则点击事件会被拖拽吃掉
+        if (downTarget.current?.closest('button, input, textarea')) {
+          e.preventDefault()
+          return
+        }
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', task.id)
         onDragStart(task.id)

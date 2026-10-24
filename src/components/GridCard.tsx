@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { MarkColor, Task } from '../../shared/types'
 import { doneText, heldLabel, heldLevel } from '../lib/format'
 
@@ -37,6 +38,7 @@ export function GridCard({
   dragging,
   dragOver
 }: Props) {
+  const downTarget = useRef<HTMLElement | null>(null)
   const level = heldLevel(task.daysHeld)
   const meta =
     variant === 'pending' ? heldLabel(task.daysHeld) : task.completedAt ? doneText(task.completedAt) : '已完成'
@@ -48,8 +50,15 @@ export function GridCard({
         task.pinned ? 'is-pinned' : ''
       } ${dragging ? 'is-dragging' : ''} ${dragOver ? 'is-over' : ''}`}
       draggable={canDrag}
+      onMouseDown={(e) => {
+        downTarget.current = e.target as HTMLElement
+      }}
       onDragStart={(e) => {
         if (!canDrag) return
+        if (downTarget.current?.closest('button, input, textarea')) {
+          e.preventDefault()
+          return
+        }
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setData('text/plain', task.id)
         onDragStart(task.id)

@@ -86,6 +86,11 @@ function collectYear(year: number): { date: Date; name: string; kind: 'holiday' 
   return out
 }
 
+/** 导出某一年的全部节日，供日历视图使用 */
+export function festivalsOfYear(year: number): { date: Date; name: string; kind: 'holiday' | 'term' }[] {
+  return collectYear(year)
+}
+
 /**
  * 取接下来要显示的节日：
  * - 一周内（含今天）有节日的，全部显示（应对连着的节日）
