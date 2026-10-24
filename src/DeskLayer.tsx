@@ -41,6 +41,7 @@ interface PanelStyle {
   width?: number
   height?: number
   alpha?: number
+  locked?: boolean
 }
 
 function loadStyle(): Record<string, PanelStyle> {
@@ -132,6 +133,7 @@ export default function DeskLayer() {
 
   /** 拖动面板 */
   function startDragPanel(e: React.PointerEvent, id: string) {
+    if (style[id]?.locked) return
     if ((e.target as HTMLElement).closest('button')) return
     const startX = e.clientX
     const startY = e.clientY
@@ -171,21 +173,46 @@ export default function DeskLayer() {
     window.addEventListener('pointerup', onUp)
   }
 
-  /** 拖右下角改尺寸 */
-  function startResize(e: React.PointerEvent, id: string) {
+  /** 八方向拉伸：dir 是 n/s/e/w/ne/nw/se/sw 组合 */
+  function startResize(e: React.PointerEvent, id: string, dir: string) {
     e.stopPropagation()
+    e.preventDefault()
     const panel = (e.currentTarget as HTMLElement).closest('.desk-panel') as HTMLElement | null
     if (!panel) return
     const rect = panel.getBoundingClientRect()
     const startX = e.clientX
     const startY = e.clientY
-    const baseW = rect.width
-    const baseH = rect.height
+    const b = { w: rect.width, h: rect.height, x: rect.left, y: rect.top }
 
     const onMove = (ev: PointerEvent) => {
-      const w = Math.max(150, Math.min(720, baseW + (ev.clientX - startX)))
-      const h = Math.max(74, Math.min(760, baseH + (ev.clientY - startY)))
+      const dx = ev.clientX - startX
+      const dy = ev.clientY - startY
+      let w = b.w
+      let h = b.h
+      let x = b.x
+      let y = b.y
+
+      if (dir.includes('e')) w = Math.max(150, Math.min(720, b.w + dx))
+      if (dir.includes('s')) h = Math.max(74, Math.min(760, b.h + dy))
+      if (dir.includes('w')) {
+        w = Math.max(150, Math.min(720, b.w - dx))
+        x = b.x + (b.w - w)
+      }
+      if (dir.includes('n')) {
+        h = Math.max(74, Math.min(760, b.h - dy))
+        y = b.y + (b.h - h)
+      }
+
       patchStyle(id, { width: Math.round(w), height: Math.round(h) })
+      setPos((cur) => {
+        const next = { ...cur, [id]: { x: Math.round(Math.max(0, x)), y: Math.round(Math.max(0, y)) } }
+        try {
+          localStorage.setItem(POS_KEY, JSON.stringify(next))
+        } catch {
+          /* 忽略 */
+        }
+        return next
+      })
     }
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
@@ -248,6 +275,7 @@ export default function DeskLayer() {
         const width = st.width ?? 226
         const height = st.height
         const alpha = st.alpha ?? 0.72
+        const locked = !!st.locked
         const isCollapsed = collapsed.has(cat.id)
         const p = pos[cat.id] ?? { x: 24 + (idx % 4) * (width + 22), y: 24 + Math.floor(idx / 4) * 300 }
         return (
@@ -256,7 +284,7 @@ export default function DeskLayer() {
             data-panel={cat.id}
             className={`desk-panel ${isCollapsed ? 'is-collapsed' : ''} ${
               dragOverCat === cat.id ? 'is-over' : ''
-            }`}
+            } ${locked ? 'is-locked' : ''}`}
             style={{
               left: p.x,
               top: p.y,
@@ -301,6 +329,7 @@ export default function DeskLayer() {
               </span>
               <span className="dp-title">{cat.name}</span>
               <span className="dp-count">{items.length}</span>
+              {locked && <span className="dp-lock" title="已锁定，位置和大小不会变">🔒</span>}
               <button className="dp-act" title="分区设置" onClick={() => setMenuCat(menuCat === cat.id ? null : cat.id)}>
                 ⋯
               </button>
@@ -346,11 +375,17 @@ export default function DeskLayer() {
                 </footer>
               </>
             )}
-            <span
-              className="dp-resize"
-              title="拖动改变大小"
-              onPointerDown={(e) => startResize(e, cat.id)}
-            />
+            {!locked && !isCollapsed && (
+              <>
+                {(['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const).map((d) => (
+                  <span
+                    key={d}
+                    className={`dp-h dp-${d}`}
+                    onPointerDown={(e) => startResize(e, cat.id, d)}
+                  />
+                ))}
+              </>
+            )}
           </section>
         )
       })}
@@ -383,6 +418,22 @@ export default function DeskLayer() {
                 />
               ))}
             </div>
+            <label className="dm-label">锁定</label>
+            <div className="dm-seg">
+              <button
+                className={!style[menuCat]?.locked ? 'on' : ''}
+                onClick={() => patchStyle(menuCat, { locked: false })}
+              >
+                可拖动
+              </button>
+              <button
+                className={style[menuCat]?.locked ? 'on' : ''}
+                onClick={() => patchStyle(menuCat, { locked: true })}
+              >
+                锁定位置和大小
+              </button>
+            </div>
+
             <label className="dm-label">背景不透明度</label>
             <input
               type="range"

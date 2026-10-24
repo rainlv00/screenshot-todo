@@ -3942,3 +3942,102 @@ html.desk-mode #root {
 .desk-panel > .dp-foot {
   flex: 0 0 auto;
 }
+
+/* 八方向拉伸手柄 */
+.dp-h {
+  position: absolute;
+  z-index: 6;
+}
+
+.dp-n  { top: -3px; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.dp-s  { bottom: -3px; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.dp-w  { left: -3px; top: 8px; bottom: 8px; width: 6px; cursor: ew-resize; }
+.dp-e  { right: -3px; top: 8px; bottom: 8px; width: 6px; cursor: ew-resize; }
+.dp-ne { right: -4px; top: -4px; width: 12px; height: 12px; cursor: nesw-resize; }
+.dp-nw { left: -4px; top: -4px; width: 12px; height: 12px; cursor: nwse-resize; }
+.dp-se { right: -4px; bottom: -4px; width: 14px; height: 14px; cursor: nwse-resize; }
+.dp-sw { left: -4px; bottom: -4px; width: 12px; height: 12px; cursor: nesw-resize; }
+
+/* 悬停时给点视觉暗示，四角稍亮 */
+.desk-panel:hover .dp-se {
+  background: radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.35), transparent 70%);
+}
+
+/* 表头拖动光标 */
+.dp-head {
+  cursor: move;
+}
+
+.desk-panel.is-locked .dp-head {
+  cursor: default;
+}
+
+.dp-lock {
+  font-size: 10px;
+  opacity: 0.55;
+  margin-right: 2px;
+}
+
+/* 预览缩放条 */
+.preview-box {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.preview-box.can-pan {
+  cursor: grab;
+}
+
+.preview-box.is-dragging {
+  cursor: grabbing;
+}
+
+.preview-box img {
+  max-width: 92vw;
+  max-height: 88vh;
+  user-select: none;
+  transition: transform 0.05s linear;
+  will-change: transform;
+}
+
+.preview-bar {
+  position: absolute;
+  bottom: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(20, 24, 40, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.preview-bar button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.preview-bar button:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.preview-zoom {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}

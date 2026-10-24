@@ -94,6 +94,62 @@ export function getDownloadState(): DownloadState {
 
 let state: DownloadState = { status: 'idle', percent: 0 }
 
+/**
+ * GitHub 在国内直连经常几十 KB/s，100MB 要下几个小时。
+ * 先走加速镜像，全部失败再退回直连。
+ */
+const MIRRORS = ['https://ghfast.top/', 'https://ghproxy.net/', 'https://gh-proxy.com/']
+
+async function fetchWithMirrors(rawUrl: string): Promise<Response> {
+  const candidates = [...MIRRORS.map((m) => m + rawUrl), rawUrl]
+  let lastErr: unknown = null
+
+  for (const url of candidates) {
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 15000)
+      const res = await net.fetch(url, { headers: { 'User-Agent': UA }, signal: ctrl.signal })
+      clearTimeout(timer)
+
+      if (!res.ok || !res.body) {
+        lastErr = new Error(`HTTP ${res.status}`)
+        continue
+      }
+
+      // 先读一小段，3 秒内没数据说明这条线是死的
+      const reader = res.body.getReader()
+      const first = await Promise.race([
+        reader.read(),
+        new Promise<null>((r) => setTimeout(() => r(null), 3000))
+      ])
+      if (!first || first.done) {
+        lastErr = new Error('首包超时')
+        continue
+      }
+
+      const rest = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(first.value)
+        },
+        async pull(controller) {
+          const { done, value } = await reader.read()
+          if (done) controller.close()
+          else controller.enqueue(value)
+        },
+        cancel() {
+          void reader.cancel()
+        }
+      })
+
+      return new Response(rest, { status: res.status, headers: res.headers })
+    } catch (e) {
+      lastErr = e
+      continue
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('所有下载通道都失败')
+}
+
 export async function downloadUpdate(
   info: UpdateInfo,
   onProgress: (s: DownloadState) => void
@@ -105,7 +161,7 @@ export async function downloadUpdate(
 
   const dest = path.join(app.getPath('temp'), `截图待办-Setup-${info.version}.exe`)
   try {
-    const res = await net.fetch(info.url, { headers: { 'User-Agent': UA } })
+    const res = await fetchWithMirrors(info.url)
     if (!res.ok || !res.body) throw new Error(`下载失败 HTTP ${res.status}`)
 
     const total = Number(res.headers.get('content-length') || info.size || 0)
