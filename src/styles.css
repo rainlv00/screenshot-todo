@@ -2397,3 +2397,133 @@ body.is-reordering .gcard {
   color: #e5484d;
   font-weight: 600;
 }
+
+/* ---------------- 文字颜色 6 种 ---------------- */
+
+.tone-row {
+  display: flex;
+  gap: 7px;
+}
+
+.tone-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(20, 24, 40, 0.16);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  transition: transform 0.12s;
+}
+
+.tone-dot:hover {
+  transform: scale(1.1);
+}
+
+.tone-dot.on {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent);
+}
+
+.tone-dot.auto {
+  background: linear-gradient(135deg, #16171b 50%, #fff 50%);
+  color: #fff;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+.tone-dot.black { background: #16171b; color: transparent; }
+.tone-dot.white { background: #fff; color: transparent; }
+.tone-dot.blue { background: #3f6bff; color: transparent; }
+.tone-dot.green { background: #30a46c; color: transparent; }
+.tone-dot.yellow { background: #f5a524; color: transparent; }
+
+/* 各色调下的文字颜色 */
+.app[data-tone='black'] {
+  --text: #16171b;
+  --text-2: #3f4350;
+  --muted: #6b7080;
+  text-shadow: none;
+}
+
+.app[data-tone='blue'] {
+  --text: #3556d8;
+  --text-2: #5170e8;
+  --muted: #8ea1f0;
+  text-shadow: none;
+}
+
+.app[data-tone='green'] {
+  --text: #1e7a4e;
+  --text-2: #2f9b67;
+  --muted: #6ab894;
+  text-shadow: none;
+}
+
+.app[data-tone='yellow'] {
+  --text: #8a5a00;
+  --text-2: #a8790f;
+  --muted: #c19a35;
+  text-shadow: none;
+}
+
+/* ---------------- 卡片按钮加大 ---------------- */
+
+.actions .icon-btn {
+  width: 31px;
+  height: 31px;
+}
+
+.actions .icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.color-btn .color-dot {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------------- 节日条：常驻醒目 ---------------- */
+
+.festival-bar {
+  color: var(--text);
+  gap: 4px 8px;
+}
+
+.festival-item {
+  padding: 1px 7px;
+  border-radius: 7px;
+  background: rgba(20, 24, 40, 0.16);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.app[data-scheme='dark'] .festival-item,
+.app[data-tone='white'] .festival-item,
+.app[data-tone='blue'] .festival-item,
+.app[data-tone='green'] .festival-item {
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.festival-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.festival-item.is-holiday .festival-name {
+  color: #ff5c5c;
+}
+
+.festival-days b {
+  color: var(--text);
+}
+
+.festival-days {
+  color: var(--text-2);
+}
+
+.festival-icon {
+  color: var(--text-2);
+  opacity: 0.9;
+}

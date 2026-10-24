@@ -63,7 +63,7 @@ export interface Prefs {
   /** 字号档位 */
   fontSize: 'small' | 'normal' | 'large' | 'xl'
   /** 文字色调，auto = 跟随底色 */
-  textTone: 'auto' | 'dark' | 'light'
+  textTone: 'auto' | 'black' | 'white' | 'blue' | 'green' | 'yellow'
 }
 
 export interface UpdateInfo {

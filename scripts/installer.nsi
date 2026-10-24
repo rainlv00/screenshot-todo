@@ -21,8 +21,8 @@ Unicode true
 !define REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\截图待办"
 
 Name "${APPNAME}"
-OutFile "${OUTDIR}\ScreenshotTodo-Setup-${VERSION}.exe"
-InstallDir "$LOCALAPPDATA\Programs\${APPNAME}"
+OutFile "${OUTDIR}\ScreenshotTodo-Setup.exe"
+InstallDir "D:\Programs\${APPNAME}"
 InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
@@ -55,6 +55,10 @@ VIAddVersionKey "LegalCopyright" ""
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
 Function .onInit
+  ; 没有 D 盘就退回用户目录
+  IfFileExists "D:\*.*" +2
+    StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${APPNAME}"
+
   ; 已经装过就先卸掉旧版，避免残留文件
   ReadRegStr $0 HKCU "${REGKEY}" "UninstallString"
   StrCmp $0 "" done

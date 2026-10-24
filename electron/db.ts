@@ -125,9 +125,12 @@ export function getPrefs(): Prefs {
     fontSize: (['small', 'large', 'xl'].includes(getSetting('font_size', 'normal'))
       ? getSetting('font_size', 'normal')
       : 'normal') as Prefs['fontSize'],
-    textTone: (['dark', 'light'].includes(getSetting('text_tone', 'auto'))
-      ? getSetting('text_tone', 'auto')
-      : 'auto') as Prefs['textTone'],
+    textTone: (() => {
+      const v = getSetting('text_tone', 'auto')
+      if (v === 'dark') return 'black'
+      if (v === 'light') return 'white'
+      return (['auto', 'black', 'white', 'blue', 'green', 'yellow'] as const).includes(v as never) ? (v as Prefs['textTone']) : 'auto'
+    })(),
     hotkeyCapture: getSetting('hotkey_capture', 'Ctrl+Alt+V'),
     hotkeyPause: getSetting('hotkey_pause', 'Ctrl+Alt+J')
   }

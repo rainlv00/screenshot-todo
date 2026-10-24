@@ -192,7 +192,7 @@ export function SettingsModal({ prefs, onPatch, onOpenHelp, onClose }: Props) {
           <button className="btn ghost" onClick={() => window.api.quit()}>
             退出程序
           </button>
-          <div className="version">v1.0.0</div>
+          <div className="version">v1.0.1</div>
         </div>
       </div>
     </div>

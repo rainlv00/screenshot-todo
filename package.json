@@ -1,7 +1,7 @@
 {
   "name": "screenshot-todo",
   "productName": "截图待办",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "截图即待办：监听剪贴板，微信截图自动入库",
   "author": "WDY",

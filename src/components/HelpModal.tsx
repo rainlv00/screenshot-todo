@@ -101,7 +101,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
             真正退出：托盘图标右键 → 退出截图待办。
           </p>
 
-          <div className="help-foot">截图待办 v1.0.0 · 本地运行 · 不收集任何数据</div>
+          <div className="help-foot">截图待办 v1.0.1 · 本地运行 · 不收集任何数据</div>
         </div>
       </div>
     </div>

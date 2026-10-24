@@ -105,18 +105,22 @@ export function TopBar({ prefs, onPrefs, onPickBg, onClearBg, onOpenSettings }: 
                 <div className="pop-row" style={{ marginTop: 10 }}>
                   <span className="pop-label">文字颜色</span>
                 </div>
-                <div className="seg">
+                <div className="tone-row">
                   {([
                     ['auto', '自动'],
-                    ['dark', '深色'],
-                    ['light', '浅色']
+                    ['black', '黑'],
+                    ['white', '白'],
+                    ['blue', '蓝'],
+                    ['green', '绿'],
+                    ['yellow', '黄']
                   ] as const).map(([k, label]) => (
                     <button
                       key={k}
-                      className={prefs.textTone === k ? 'on' : ''}
-                      onClick={() => onPrefs({ textTone: k })}
+                      className={`tone-dot ${k} ${prefs.textTone === k ? 'on' : ''}`}
+                      title={label}
+                      onClick={() => onPrefs({ textTone: k as typeof prefs.textTone })}
                     >
-                      {label}
+                      {k === 'auto' ? 'A' : ''}
                     </button>
                   ))}
                 </div>

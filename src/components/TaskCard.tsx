@@ -153,7 +153,10 @@ export function TaskCard({
             <input
               type="datetime-local"
               defaultValue={tsToLocalInput(task.dueAt)}
-              onChange={(e) => onDue(task, localInputToTs(e.target.value))}
+              onChange={(e) => {
+                onDue(task, localInputToTs(e.target.value))
+                setDueOpen(false)
+              }}
             />
             <button className="mini" onClick={() => { onDue(task, null); setDueOpen(false) }}>
               清除
