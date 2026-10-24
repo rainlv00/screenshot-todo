@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ListResult, Prefs, Task } from '../shared/types'
+import type { MarkColor, ListResult, Prefs, Task } from '../shared/types'
 import { TaskCard } from './components/TaskCard'
 import { GridCard } from './components/GridCard'
 import { Preview } from './components/Preview'
@@ -7,6 +7,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { TopBar } from './components/TopBar'
 import { HelpModal } from './components/HelpModal'
 import { UpdateButton } from './components/UpdateButton'
+import { FestivalBar } from './components/FestivalBar'
 import { BgCropper } from './components/BgCropper'
 import { dateText, dayKey } from './lib/format'
 import { prettyAccel } from './components/HotkeyField'
@@ -43,6 +44,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [cropping, setCropping] = useState<{ file: string; width: number; height: number } | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [bgVer, setBgVer] = useState(1)
   const [loaded, setLoaded] = useState(false)
@@ -192,6 +195,46 @@ export default function App() {
     say('已恢复自动收录')
   }
 
+  function onDragStart(id: string) {
+    setDragId(id)
+  }
+
+  function onDragOver(e: React.DragEvent, id: string) {
+    if (!dragId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (id !== overId) setOverId(id)
+  }
+
+  function onDrop(e: React.DragEvent, id: string) {
+    e.preventDefault()
+    const from = dragId
+    setDragId(null)
+    setOverId(null)
+    if (!from || from === id) return
+    const ids = data.pending.map((t) => t.id)
+    const i = ids.indexOf(from)
+    const j = ids.indexOf(id)
+    if (i < 0 || j < 0) return
+    const [moved] = ids.splice(i, 1)
+    ids.splice(j, 0, moved)
+    void window.api.reorder(ids)
+  }
+
+  function onDragEnd() {
+    setDragId(null)
+    setOverId(null)
+  }
+
+  async function togglePin(t: Task) {
+    await window.api.setPinned(t.id, !t.pinned)
+    say(t.pinned ? '已取消置顶' : '已置顶')
+  }
+
+  async function markColor(t: Task, color: MarkColor) {
+    await window.api.setColor(t.id, color)
+  }
+
   /** 收录总闸：开 = 关掉暂停；关 = 停止自动收录并清掉暂停 */
   async function toggleCapture() {
     if (capturing) {
@@ -237,6 +280,13 @@ export default function App() {
   const pauseLeft = Math.max(0, Math.ceil(prefs.pausedUntil - now / 1000))
   const pauseText =
     pauseLeft > 3600 ? `${Math.ceil(pauseLeft / 3600)} 小时后恢复` : `${Math.ceil(pauseLeft / 60)} 分钟后恢复`
+  const seqMap = useMemo(() => {
+    const m = new Map<string, number>()
+    data.pending.forEach((t, i) => m.set(t.id, i + 1))
+    data.done.forEach((t, i) => m.set(t.id, i + 1))
+    return m
+  }, [data.pending, data.done])
+
   const bgUrl = prefs.bgImage ? `${window.api.imgUrl(prefs.bgImage)}?v=${bgVer}` : ''
   const scheme = DARK_COLORS.has(prefs.bgColor) ? 'dark' : 'light'
 
@@ -249,9 +299,18 @@ export default function App() {
               key={t.id}
               task={t}
               variant={variant}
+              index={seqMap.get(t.id) ?? 0}
               onToggle={toggle}
               onPreview={setPreview}
               onRemove={removeTask}
+              onPin={togglePin}
+              onColor={markColor}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              onDragEnd={onDragEnd}
+              dragging={dragId === t.id}
+              dragOver={overId === t.id}
             />
           ))}
         </div>
@@ -262,11 +321,20 @@ export default function App() {
         key={t.id}
         task={t}
         variant={variant}
+        index={seqMap.get(t.id) ?? 0}
         onToggle={toggle}
         onPreview={setPreview}
         onTitle={changeTitle}
         onDue={changeDue}
         onRemove={removeTask}
+        onPin={togglePin}
+        onColor={markColor}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+        dragging={dragId === t.id}
+        dragOver={overId === t.id}
       />
     ))
   }
@@ -420,6 +488,8 @@ export default function App() {
             </>
           )}
         </main>
+
+        <FestivalBar />
 
         <footer className="footer">
           <button

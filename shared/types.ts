@@ -15,12 +15,21 @@ export interface Task {
   /** 放入待办的时间 epoch 秒 */
   createdAt: number
   completedAt: number | null
+  /** 置顶：优先显示 */
+  pinned: boolean
+  /** 颜色标记 */
+  color: MarkColor
+  /** 手动排序值，越小越靠前 */
+  sortOrder: number
   /** 放置天数（按自然日计算） */
   daysHeld: number
 }
 
 export type PanelColor = 'white' | 'gray' | 'black' | 'blue' | 'yellow' | 'green'
 export type ViewMode = 'list' | 'grid'
+
+/** 待办颜色标记 */
+export type MarkColor = 'none' | 'red' | 'orange' | 'green'
 
 export interface Prefs {
   dailyRemindAt: string

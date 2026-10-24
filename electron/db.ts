@@ -28,6 +28,9 @@ function rowToTask(r: any): Task {
     reopenCount: r.reopen_count ?? 0,
     createdAt: r.created_at,
     completedAt: r.completed_at ?? null,
+    pinned: !!r.pinned,
+    color: (r.color ?? 'none') as Task['color'],
+    sortOrder: r.sort_order ?? 0,
     daysHeld: daysHeldFrom(r.created_at)
   }
 }
@@ -54,18 +57,23 @@ export function initDb(dataDir: string): void {
       reopen_count INTEGER NOT NULL DEFAULT 0,
       created_at   INTEGER NOT NULL,
       completed_at INTEGER,
-      deleted_at   INTEGER
+      deleted_at   INTEGER,
+      pinned       INTEGER NOT NULL DEFAULT 0,
+      color        TEXT NOT NULL DEFAULT 'none',
+      sort_order   INTEGER NOT NULL DEFAULT 0
     );
   `)
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_hash ON tasks(img_hash)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_status_created ON tasks(status, created_at DESC)')
   db.exec('CREATE INDEX IF NOT EXISTS idx_status_completed ON tasks(status, completed_at DESC)')
 
-  // 软删除列：老库自动补上
+  // 老库自动补列
   const cols = db.prepare('PRAGMA table_info(tasks)').all() as any[]
-  if (!cols.some((c) => c.name === 'deleted_at')) {
-    db.exec('ALTER TABLE tasks ADD COLUMN deleted_at INTEGER')
-  }
+  const has = (n: string) => cols.some((c) => c.name === n)
+  if (!has('deleted_at')) db.exec('ALTER TABLE tasks ADD COLUMN deleted_at INTEGER')
+  if (!has('pinned')) db.exec('ALTER TABLE tasks ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0')
+  if (!has('color')) db.exec("ALTER TABLE tasks ADD COLUMN color TEXT NOT NULL DEFAULT 'none'")
+  if (!has('sort_order')) db.exec('ALTER TABLE tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS task_events (
@@ -212,7 +220,9 @@ export function pendingSummary(): { count: number; oldestDays: number } {
 
 export function listTasks(): { pending: Task[]; done: Task[] } {
   const pending = (db
-    .prepare("SELECT * FROM tasks WHERE status = 'pending' AND deleted_at IS NULL ORDER BY created_at DESC")
+    .prepare(
+      "SELECT * FROM tasks WHERE status = 'pending' AND deleted_at IS NULL ORDER BY pinned DESC, sort_order ASC, created_at DESC"
+    )
     .all() as any[]).map(rowToTask)
 
   const done = (db
@@ -271,6 +281,29 @@ export function setDone(id: string, done: boolean): boolean {
     db.exec('ROLLBACK')
     throw e
   }
+}
+
+/** 拖动排序：按传入的 id 顺序重写 sort_order */
+export function reorderTasks(ids: string[]): void {
+  const stmt = db.prepare('UPDATE tasks SET sort_order = ? WHERE id = ?')
+  db.exec('BEGIN')
+  try {
+    ids.forEach((id, i) => stmt.run(i + 1, id))
+    db.exec('COMMIT')
+  } catch (e) {
+    db.exec('ROLLBACK')
+    throw e
+  }
+}
+
+export function setPinned(id: string, pinned: boolean): void {
+  db.prepare('UPDATE tasks SET pinned = ? WHERE id = ?').run(pinned ? 1 : 0, id)
+}
+
+export function setColor(id: string, color: string): void {
+  const ok = ['none', 'red', 'orange', 'green']
+  if (!ok.includes(color)) return
+  db.prepare('UPDATE tasks SET color = ? WHERE id = ?').run(color, id)
 }
 
 export function setTitle(id: string, title: string): void {

@@ -1,21 +1,55 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Task } from '../../shared/types'
+import type { MarkColor, Task } from '../../shared/types'
 import { doneText, dueText, heldLabel, heldLevel, localInputToTs, tsToLocalInput } from '../lib/format'
 
 interface Props {
   task: Task
   variant: 'pending' | 'done'
+  index: number
   onToggle: (task: Task) => void
   onPreview: (task: Task) => void
   onTitle: (task: Task, title: string) => void
   onDue: (task: Task, dueAt: number | null) => void
   onRemove: (task: Task) => void
+  onPin: (task: Task) => void
+  onColor: (task: Task, color: MarkColor) => void
+  onDragStart: (id: string) => void
+  onDragOver: (e: React.DragEvent, id: string) => void
+  onDrop: (e: React.DragEvent, id: string) => void
+  onDragEnd: () => void
+  dragging: boolean
+  dragOver: boolean
 }
 
-export function TaskCard({ task, variant, onToggle, onPreview, onTitle, onDue, onRemove }: Props) {
+const COLORS: { key: MarkColor; label: string }[] = [
+  { key: 'red', label: '重要且紧急' },
+  { key: 'orange', label: '重要不紧急' },
+  { key: 'green', label: '不重要不紧急' },
+  { key: 'none', label: '清除标记' }
+]
+
+export function TaskCard({
+  task,
+  variant,
+  index,
+  onToggle,
+  onPreview,
+  onTitle,
+  onDue,
+  onRemove,
+  onPin,
+  onColor,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  dragging,
+  dragOver
+}: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(task.title)
   const [dueOpen, setDueOpen] = useState(false)
+  const [colorOpen, setColorOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -24,6 +58,7 @@ export function TaskCard({ task, variant, onToggle, onPreview, onTitle, onDue, o
 
   const level = heldLevel(task.daysHeld)
   const due = task.dueAt ? dueText(task.dueAt) : null
+  const canDrag = variant === 'pending' && !editing
 
   function commitTitle() {
     setEditing(false)
@@ -32,7 +67,39 @@ export function TaskCard({ task, variant, onToggle, onPreview, onTitle, onDue, o
   }
 
   return (
-    <div className={`card ${variant === 'done' ? 'is-done' : ''}`}>
+    <div
+      className={`card color-${task.color} ${variant === 'done' ? 'is-done' : ''} ${
+        task.pinned ? 'is-pinned' : ''
+      } ${dragging ? 'is-dragging' : ''} ${dragOver ? 'is-over' : ''}`}
+      draggable={canDrag}
+      onDragStart={(e) => {
+        if (!canDrag) return
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', task.id)
+        onDragStart(task.id)
+      }}
+      onDragOver={(e) => onDragOver(e, task.id)}
+      onDrop={(e) => onDrop(e, task.id)}
+      onDragEnd={onDragEnd}
+    >
+      <button
+        className={`pin-corner ${task.pinned ? 'on' : ''}`}
+        title={task.pinned ? '取消置顶' : '置顶'}
+        onClick={() => onPin(task)}
+      >
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+          <path
+            d="M9.4 2.2l4.4 4.4-1.6 1.6-.6-.2-2.3 2.3.5 2.6-1 1-4.9-4.9 1-1 2.6.5L9.8 6.2l-.2-.6z"
+            fill="currentColor"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      <span className="idx">{index}</span>
+
       <button
         className={`check ${variant === 'done' ? 'on' : ''}`}
         onClick={() => onToggle(task)}
@@ -115,6 +182,13 @@ export function TaskCard({ task, variant, onToggle, onPreview, onTitle, onDue, o
 
       <div className="actions">
         <button
+          className={`icon-btn color-btn ${task.color !== 'none' ? 'on' : ''}`}
+          title="颜色标记"
+          onClick={() => setColorOpen((v) => !v)}
+        >
+          <span className={`color-dot ${task.color}`} />
+        </button>
+        <button
           className="icon-btn"
           title="设置截止时间（选填）"
           onClick={() => setDueOpen((v) => !v)}
@@ -137,6 +211,28 @@ export function TaskCard({ task, variant, onToggle, onPreview, onTitle, onDue, o
           </svg>
         </button>
       </div>
+
+      {colorOpen && (
+        <>
+          <div className="pop-mask" onClick={() => setColorOpen(false)} />
+          <div className="color-pop">
+            {COLORS.map((c) => (
+              <button
+                key={c.key}
+                className={`color-choice ${c.key} ${task.color === c.key ? 'on' : ''}`}
+                title={c.label}
+                onClick={() => {
+                  onColor(task, c.key)
+                  setColorOpen(false)
+                }}
+              >
+                <span className={`color-dot ${c.key}`} />
+                <span className="color-label">{c.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

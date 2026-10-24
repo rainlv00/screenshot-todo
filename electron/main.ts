@@ -32,7 +32,10 @@ import {
   pendingSummary,
   hashExists,
   getPrefs,
-  setPrefs
+  setPrefs,
+  reorderTasks,
+  setPinned,
+  setColor
 } from './db'
 import { saveImage, deleteImageFiles, sha1 } from './store'
 import { startDailyReminder, type ReminderCtl } from './reminder'
@@ -788,6 +791,21 @@ function registerIpc(): void {
       if (done) hideToast()
     }
     return changed
+  })
+
+  ipcMain.handle('tasks:reorder', (_e, ids: string[]) => {
+    reorderTasks(ids)
+    broadcastChanged()
+  })
+
+  ipcMain.handle('tasks:setPinned', (_e, id: string, pinned: boolean) => {
+    setPinned(id, pinned)
+    broadcastChanged()
+  })
+
+  ipcMain.handle('tasks:setColor', (_e, id: string, color: string) => {
+    setColor(id, color)
+    broadcastChanged()
   })
 
   ipcMain.handle('tasks:setTitle', (_e, id: string, title: string) => {

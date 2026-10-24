@@ -12,6 +12,11 @@ const api = {
   setDone: (id: string, done: boolean): Promise<boolean> => ipcRenderer.invoke('tasks:setDone', id, done),
   setTitle: (id: string, title: string): Promise<void> => ipcRenderer.invoke('tasks:setTitle', id, title),
   setDue: (id: string, dueAt: number | null): Promise<void> => ipcRenderer.invoke('tasks:setDue', id, dueAt),
+  reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('tasks:reorder', ids),
+  setPinned: (id: string, pinned: boolean): Promise<void> =>
+    ipcRenderer.invoke('tasks:setPinned', id, pinned),
+  setColor: (id: string, color: string): Promise<void> =>
+    ipcRenderer.invoke('tasks:setColor', id, color),
   undoAdd: (id: string): Promise<void> => ipcRenderer.invoke('tasks:undoAdd', id),
   removeTask: (id: string): Promise<boolean> => ipcRenderer.invoke('tasks:remove', id),
   undoRemove: (id: string): Promise<void> => ipcRenderer.invoke('tasks:undoRemove', id),
