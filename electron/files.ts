@@ -25,6 +25,8 @@ export interface FileItem {
   size: number
   mtime: number
   categoryId: string | null
+  origPath: string
+  state: string
   pinned: boolean
   missing: boolean
   addedAt: number
@@ -47,6 +49,59 @@ const FALLBACK_ID = 'other'
 
 function now(): number {
   return Math.floor(Date.now() / 1000)
+}
+
+/** 收纳根目录：软件目录下的「收纳」，不可写时退回用户数据目录 */
+export function storageRoot(): string {
+  const exeDir = path.dirname(process.execPath)
+  const candidate = path.join(exeDir, '收纳')
+  try {
+    fs.mkdirSync(candidate, { recursive: true })
+    fs.accessSync(candidate, fs.constants.W_OK)
+    return candidate
+  } catch {
+    const fallback = path.join(process.env.APPDATA || process.cwd(), '截图待办', '收纳')
+    fs.mkdirSync(fallback, { recursive: true })
+    return fallback
+  }
+}
+
+/** 同名文件自动加 (1)(2) */
+function uniquePath(dir: string, name: string): string {
+  const ext = path.extname(name)
+  const base = path.basename(name, ext)
+  let p = path.join(dir, name)
+  let i = 1
+  while (fs.existsSync(p)) {
+    p = path.join(dir, `${base}(${i})${ext}`)
+    i++
+  }
+  return p
+}
+
+/** 跨盘 rename 会报 EXDEV，退化成复制+删除 */
+function safeMove(src: string, dst: string): boolean {
+  try {
+    fs.renameSync(src, dst)
+    return true
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code
+    if (code === 'EXDEV') {
+      try {
+        fs.copyFileSync(src, dst)
+        fs.unlinkSync(src)
+        return true
+      } catch {
+        return false
+      }
+    }
+    return false
+  }
+}
+
+/** 分类名转成安全的目录名 */
+function safeDirName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, '_').trim() || '其他'
 }
 
 /** 首次运行时把预设分类写进去 */
@@ -85,7 +140,9 @@ export function listCategories(): FileCategory[] {
     .all() as any[]
   const counts = new Map<string, number>()
   for (const c of db
-    .prepare('SELECT category_id, COUNT(*) AS n FROM files WHERE missing = 0 GROUP BY category_id')
+    .prepare(
+      "SELECT category_id, COUNT(*) AS n FROM files WHERE missing = 0 AND state = 'inbox' GROUP BY category_id"
+    )
     .all() as any[]) {
     counts.set(c.category_id, c.n)
   }
@@ -158,6 +215,8 @@ function rowToFile(r: any): FileItem {
     size: r.size ?? 0,
     mtime: r.mtime ?? 0,
     categoryId: r.category_id ?? null,
+    origPath: r.orig_path ?? '',
+    state: r.state ?? 'inbox',
     pinned: !!r.pinned,
     missing: !!r.missing,
     addedAt: r.added_at
@@ -167,8 +226,8 @@ function rowToFile(r: any): FileItem {
 export function listFiles(categoryId?: string | null): FileItem[] {
   const db = getDb()
   const sql = categoryId
-    ? 'SELECT * FROM files WHERE category_id = ? ORDER BY pinned DESC, added_at DESC'
-    : 'SELECT * FROM files ORDER BY pinned DESC, added_at DESC'
+    ? "SELECT * FROM files WHERE category_id = ? AND state = 'inbox' ORDER BY pinned DESC, added_at DESC"
+    : "SELECT * FROM files WHERE state = 'inbox' ORDER BY pinned DESC, added_at DESC"
   const rows = (categoryId ? db.prepare(sql).all(categoryId) : db.prepare(sql).all()) as any[]
   return rows.map(rowToFile)
 }
@@ -191,26 +250,73 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
 
   const name = path.basename(absPath)
   const ext = path.extname(name).replace(/^\./, '').toLowerCase()
-  const existed = db.prepare('SELECT id FROM files WHERE path = ?').get(absPath) as { id: string } | undefined
+  const existed = db.prepare('SELECT id, state FROM files WHERE orig_path = ?').get(absPath) as
+    | { id: string; state: string }
+    | undefined
 
-  if (existed) {
-    db.prepare('UPDATE files SET size = ?, mtime = ?, missing = 0, last_seen = ? WHERE id = ?').run(
-      st.size,
-      Math.floor(st.mtimeMs / 1000),
-      now(),
-      existed.id
-    )
+  // 已经收进来过的，只是更新一下状态
+  if (existed && existed.state === 'inbox') {
     const row = db.prepare('SELECT * FROM files WHERE id = ?').get(existed.id) as any
     return rowToFile(row)
   }
 
-  const id = `f_${randomUUID().slice(0, 8)}`
   const cat = categoryId ?? matchCategory(ext)
-  db.prepare(
-    'INSERT INTO files(id, path, name, ext, size, mtime, category_id, added_at, last_seen) VALUES(?,?,?,?,?,?,?,?,?)'
-  ).run(id, absPath, name, ext, st.size, Math.floor(st.mtimeMs / 1000), cat, now(), now())
+  const catRow = db.prepare('SELECT name FROM file_categories WHERE id = ?').get(cat) as
+    | { name: string }
+    | undefined
+  const dstDir = path.join(storageRoot(), safeDirName(catRow?.name ?? '其他'))
+  fs.mkdirSync(dstDir, { recursive: true })
+  const dst = uniquePath(dstDir, name)
+
+  // 真的把文件挪进收纳目录
+  if (!safeMove(absPath, dst)) return null
+
+  const id = existed ? existed.id : `f_${randomUUID().slice(0, 8)}`
+  const dstStat = fs.statSync(dst)
+  if (existed) {
+    db.prepare(
+      "UPDATE files SET path = ?, size = ?, mtime = ?, category_id = ?, state = 'inbox', missing = 0, moved_at = ?, last_seen = ? WHERE id = ?"
+    ).run(dst, dstStat.size, Math.floor(dstStat.mtimeMs / 1000), cat, now(), now(), id)
+  } else {
+    db.prepare(
+      "INSERT INTO files(id, path, orig_path, state, name, ext, size, mtime, category_id, added_at, moved_at, last_seen) VALUES(?,?,?,'inbox',?,?,?,?,?,?,?,?)"
+    ).run(id, dst, absPath, name, ext, dstStat.size, Math.floor(dstStat.mtimeMs / 1000), cat, now(), now(), now())
+  }
   const row = db.prepare('SELECT * FROM files WHERE id = ?').get(id) as any
   return rowToFile(row)
+}
+
+/** 把一个文件还原回它原来的位置 */
+export function restoreOne(id: string): boolean {
+  const db = getDb()
+  const row = db.prepare('SELECT * FROM files WHERE id = ?').get(id) as any
+  if (!row || row.state !== 'inbox') return false
+  const orig = row.orig_path || ''
+  if (!orig) return false
+  if (!fs.existsSync(row.path)) return false
+
+  try {
+    fs.mkdirSync(path.dirname(orig), { recursive: true })
+    const target = fs.existsSync(orig) ? uniquePath(path.dirname(orig), path.basename(orig)) : orig
+    if (!safeMove(row.path, target)) return false
+    db.prepare("UPDATE files SET path = ?, state = 'restored', missing = 0 WHERE id = ?").run(target, id)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 关闭文件柜时把所有还收着的文件原样放回去 */
+export function restoreAll(): { restored: number; failed: number } {
+  const db = getDb()
+  const rows = db.prepare("SELECT id FROM files WHERE state = 'inbox'").all() as { id: string }[]
+  let restored = 0
+  let failed = 0
+  for (const r of rows) {
+    if (restoreOne(r.id)) restored++
+    else failed++
+  }
+  return { restored, failed }
 }
 
 export function removeFile(id: string): void {
@@ -308,17 +414,12 @@ export function scanDirs(): { added: number; scanned: number } {
       if (!st.isFile()) continue
       scanned++
       seen.add(full)
-      const exists = db.prepare('SELECT id FROM files WHERE path = ?').get(full) as { id: string } | undefined
-      if (exists) {
-        db.prepare('UPDATE files SET size = ?, mtime = ?, missing = 0, last_seen = ? WHERE id = ?').run(
-          st.size,
-          Math.floor(st.mtimeMs / 1000),
-          now(),
-          exists.id
-        )
-      } else {
-        if (addFileByPath(full)) added++
-      }
+      const exists = db
+        .prepare('SELECT id FROM files WHERE path = ? OR orig_path = ?')
+        .get(full, full) as { id: string } | undefined
+      if (exists) continue
+      // 扫描是「收纳」动作，会把文件搬进收纳目录
+      if (addFileByPath(full)) added++
     }
   }
   return { added, scanned }

@@ -58,7 +58,10 @@ import {
   getWatchDirs,
   setWatchDirs,
   getAutoScan,
-  setAutoScan
+  setAutoScan,
+  restoreOne,
+  restoreAll,
+  storageRoot
 } from './files'
 
 const isDev = !app.isPackaged
@@ -161,6 +164,51 @@ function loadRenderer(win: BrowserWindow, query = ''): void {
     }
   }
   win.loadFile(path.join(APP_ROOT, 'dist', 'index.html'), { query: q })
+}
+
+let fileWin: BrowserWindow | null = null
+
+function createFileWindow(): void {
+  if (fileWin && !fileWin.isDestroyed()) {
+    fileWin.show()
+    fileWin.focus()
+    return
+  }
+  fileWin = new BrowserWindow({
+    width: 960,
+    height: 660,
+    minWidth: 720,
+    minHeight: 480,
+    title: '文件柜',
+    icon: ICON_BIG,
+    autoHideMenuBar: true,
+    backgroundColor: '#f5f6f9',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false
+    }
+  })
+  loadRenderer(fileWin, 'files=1')
+  fileWin.on('closed', () => {
+    fileWin = null
+    mainWin?.webContents.send('files:closed')
+  })
+
+  if (process.env.WDY_SHOT_FILES === '1') {
+    fileWin.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const img = await fileWin!.webContents.capturePage()
+          fs.writeFileSync(path.join(APP_ROOT, 'shot-cabinet.png'), img.toPNG())
+        } catch {
+          /* 截图失败忽略 */
+        }
+        app.quit()
+      }, 2400)
+    })
+  }
 }
 
 function createMainWindow(): void {
@@ -933,6 +981,28 @@ function registerIpc(): void {
   ipcMain.handle('files:deleteCategory', (_e, id: string) => deleteCategory(id))
   ipcMain.handle('files:scan', () => scanDirs())
   ipcMain.handle('files:refreshMissing', () => refreshMissing())
+  ipcMain.handle('files:restoreOne', (_e, id: string) => restoreOne(id))
+  ipcMain.handle('files:storageRoot', () => storageRoot())
+  ipcMain.handle('files:openWindow', () => createFileWindow())
+  /** 关掉文件柜：确认后把所有还收着的文件放回原处，再关窗口 */
+  ipcMain.handle('files:closeAndRestore', async () => {
+    const pending = listFiles(null).length
+    if (pending > 0) {
+      const r = await dialog.showMessageBox({
+        type: 'question',
+        buttons: ['全部还原并关闭', '取消'],
+        defaultId: 0,
+        cancelId: 1,
+        title: '关闭文件柜',
+        message: `还有 ${pending} 个文件收在柜子里`,
+        detail: '关闭后会把它们全部放回原来的位置（桌面），文件不会丢失。'
+      })
+      if (r.response !== 0) return { restored: 0, failed: 0, cancelled: true }
+    }
+    const res = restoreAll()
+    fileWin?.close()
+    return { ...res, cancelled: false }
+  })
   ipcMain.handle('files:open', (_e, id: string) => {
     const f = listFiles().find((x) => x.id === id)
     if (f) void shell.openPath(f.path)

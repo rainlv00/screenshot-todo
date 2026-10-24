@@ -53,7 +53,19 @@ const api = {
     getDirs: (): Promise<string[]> => ipcRenderer.invoke('files:getDirs'),
     setDirs: (dirs: string[]): Promise<void> => ipcRenderer.invoke('files:setDirs', dirs),
     getAutoScan: (): Promise<boolean> => ipcRenderer.invoke('files:getAutoScan'),
-    setAutoScan: (on: boolean): Promise<void> => ipcRenderer.invoke('files:setAutoScan', on)
+    setAutoScan: (on: boolean): Promise<void> => ipcRenderer.invoke('files:setAutoScan', on),
+    restoreOne: (id: string): Promise<boolean> => ipcRenderer.invoke('files:restoreOne', id),
+    storageRoot: (): Promise<string> => ipcRenderer.invoke('files:storageRoot'),
+    openWindow: (): Promise<void> => ipcRenderer.invoke('files:openWindow'),
+    closeAndRestore: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
+      ipcRenderer.invoke('files:closeAndRestore'),
+    onWindowClosed: (cb: () => void): (() => void) => {
+      const h = () => cb()
+      ipcRenderer.on('files:closed', h)
+      return () => {
+        ipcRenderer.removeListener('files:closed', h)
+      }
+    }
   },
 
   // ---- 更新 ----

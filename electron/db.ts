@@ -108,6 +108,8 @@ export function initDb(dataDir: string): void {
     CREATE TABLE IF NOT EXISTS files (
       id          TEXT PRIMARY KEY,
       path        TEXT NOT NULL UNIQUE,
+      orig_path   TEXT NOT NULL DEFAULT '',
+      state       TEXT NOT NULL DEFAULT 'inbox',
       name        TEXT NOT NULL,
       ext         TEXT NOT NULL DEFAULT '',
       size        INTEGER NOT NULL DEFAULT 0,
@@ -119,6 +121,11 @@ export function initDb(dataDir: string): void {
       last_seen   INTEGER NOT NULL DEFAULT 0
     );
   `)
+  const fcols = db.prepare('PRAGMA table_info(files)').all() as any[]
+  const hasF = (n: string) => fcols.some((c: any) => c.name === n)
+  if (!hasF('orig_path')) db.exec("ALTER TABLE files ADD COLUMN orig_path TEXT NOT NULL DEFAULT ''")
+  if (!hasF('state')) db.exec("ALTER TABLE files ADD COLUMN state TEXT NOT NULL DEFAULT 'inbox'")
+  if (!hasF('moved_at')) db.exec('ALTER TABLE files ADD COLUMN moved_at INTEGER NOT NULL DEFAULT 0')
   db.exec('CREATE INDEX IF NOT EXISTS idx_files_cat ON files(category_id, added_at DESC)')
 }
 

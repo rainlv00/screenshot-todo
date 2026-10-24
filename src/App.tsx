@@ -9,7 +9,6 @@ import { HelpModal } from './components/HelpModal'
 import { UpdateButton } from './components/UpdateButton'
 import { FestivalBar } from './components/FestivalBar'
 import { CalendarModal } from './components/CalendarModal'
-import { FilePane } from './components/FilePane'
 import { BgCropper } from './components/BgCropper'
 import { dateText, dayKey } from './lib/format'
 import { prettyAccel } from './components/HotkeyField'
@@ -47,7 +46,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [cropping, setCropping] = useState<{ file: string; width: number; height: number } | null>(null)
   const [calOpen, setCalOpen] = useState(false)
-  const [view, setView] = useState<'todo' | 'files'>('todo')
+  const [cabinetOpen, setCabinetOpen] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   // 拖拽过程中 dragId 要用 ref 同步拿，state 是异步的，首帧 dragover 会拿不到
@@ -104,6 +103,9 @@ export default function App() {
   }, [prefs.pausedUntil])
 
   useEffect(() => window.api.onChanged(refresh), [refresh])
+
+  // 文件柜窗口被直接关掉时，开关也要弹回去
+  useEffect(() => window.api.files.onWindowClosed(() => setCabinetOpen(false)), [])
   useEffect(() => window.api.onOpenSettings(() => setSettingsOpen(true)), [])
   useEffect(() => window.api.onPrefsChanged(applyPrefs), [applyPrefs])
 
@@ -428,38 +430,43 @@ export default function App() {
         )}
 
         <nav className="tabs">
-          <div className="view-switch" role="tablist">
-            <span className={`vs-knob ${view === 'files' ? 'right' : ''}`} />
+          <div className="view-switch" role="tablist" title="打开或关闭文件柜">
+            <span className={`vs-knob ${cabinetOpen ? 'right' : ''}`} />
             <button
-              className={view === 'todo' ? 'on' : ''}
-              onClick={() => setView('todo')}
-              role="tab"
+              className={!cabinetOpen ? 'on' : ''}
+              onClick={async () => {
+                if (!cabinetOpen) {
+                  await window.api.files.openWindow()
+                  setCabinetOpen(true)
+                } else {
+                  const r = await window.api.files.closeAndRestore()
+                  if (!r.cancelled) setCabinetOpen(false)
+                }
+              }}
             >
               待办
             </button>
             <button
-              className={view === 'files' ? 'on' : ''}
-              onClick={() => setView('files')}
-              role="tab"
+              className={cabinetOpen ? 'on' : ''}
+              onClick={async () => {
+                if (!cabinetOpen) {
+                  await window.api.files.openWindow()
+                  setCabinetOpen(true)
+                }
+              }}
             >
               文件
             </button>
           </div>
 
-          {view === 'todo' ? (
-            <>
-              <button className={`tab ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}>
-                待办
-                <span className={`badge ${data.pendingCount > 0 ? 'hot' : ''}`}>{data.pendingCount}</span>
-              </button>
-              <button className={`tab ${tab === 'done' ? 'active' : ''}`} onClick={() => setTab('done')}>
-                已完成
-                <span className="badge">{data.done.length}</span>
-              </button>
-            </>
-          ) : (
-            <div className="files-title">文件柜</div>
-          )}
+          <button className={`tab ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}>
+            待办
+            <span className={`badge ${data.pendingCount > 0 ? 'hot' : ''}`}>{data.pendingCount}</span>
+          </button>
+          <button className={`tab ${tab === 'done' ? 'active' : ''}`} onClick={() => setTab('done')}>
+            已完成
+            <span className="badge">{data.done.length}</span>
+          </button>
           <div className="tabs-right">
             <UpdateButton />
             <button
@@ -497,9 +504,6 @@ export default function App() {
           </div>
         </nav>
 
-        {view === 'files' ? (
-          <FilePane />
-        ) : (
         <main className={`list ${prefs.view === 'grid' ? 'is-grid' : ''}`}>
           {!loaded && <div className="loading" />}
 
@@ -575,9 +579,8 @@ export default function App() {
             </>
           )}
         </main>
-        )}
 
-        {view === 'todo' && <FestivalBar onOpen={() => setCalOpen(true)} />}
+        <FestivalBar onOpen={() => setCalOpen(true)} />
 
         <footer className="footer">
           <button
