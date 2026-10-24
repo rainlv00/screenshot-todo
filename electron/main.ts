@@ -61,7 +61,8 @@ import {
   setAutoScan,
   restoreOne,
   restoreAll,
-  storageRoot
+  storageRoot,
+  listDesktopFiles
 } from './files'
 
 const isDev = !app.isPackaged
@@ -207,6 +208,62 @@ function createFileWindow(): void {
         }
         app.quit()
       }, 2400)
+    })
+  }
+}
+
+let deskWin: BrowserWindow | null = null
+
+/** 铺在桌面上的透明层：空白处鼠标穿透，面板上才响应 */
+function createDeskWindow(): void {
+  if (deskWin && !deskWin.isDestroyed()) {
+    deskWin.show()
+    return
+  }
+  const b = screen.getPrimaryDisplay().bounds
+  deskWin = new BrowserWindow({
+    x: b.x,
+    y: b.y,
+    width: b.width,
+    height: b.height,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false
+    }
+  })
+
+  loadRenderer(deskWin, 'desk=1')
+  deskWin.setIgnoreMouseEvents(true, { forward: true })
+  deskWin.once('ready-to-show', () => deskWin?.showInactive())
+  deskWin.on('closed', () => {
+    deskWin = null
+    mainWin?.webContents.send('desk:closed')
+  })
+
+  if (process.env.WDY_SHOT_DESK === '1') {
+    deskWin.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const img = await deskWin!.webContents.capturePage()
+          fs.writeFileSync(path.join(APP_ROOT, 'shot-desk.png'), img.toPNG())
+        } catch {
+          /* 忽略 */
+        }
+        app.quit()
+      }, 2600)
     })
   }
 }
@@ -983,7 +1040,14 @@ function registerIpc(): void {
   ipcMain.handle('files:refreshMissing', () => refreshMissing())
   ipcMain.handle('files:restoreOne', (_e, id: string) => restoreOne(id))
   ipcMain.handle('files:storageRoot', () => storageRoot())
-  ipcMain.handle('files:openWindow', () => createFileWindow())
+  ipcMain.handle('files:openWindow', () => createDeskWindow())
+  ipcMain.handle('desk:close', () => deskWin?.close())
+  ipcMain.handle('desk:files', () => listDesktopFiles())
+  ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
+  ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
+  ipcMain.on('desk:interactive', (_e, on: boolean) => {
+    deskWin?.setIgnoreMouseEvents(!on, { forward: true })
+  })
   /** 关掉文件柜：确认后把所有还收着的文件放回原处，再关窗口 */
   ipcMain.handle('files:closeAndRestore', async () => {
     const pending = listFiles(null).length
@@ -1166,6 +1230,39 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => showMain())
 
   app.whenReady().then(() => {
+    // 文件柜自测：移动 → 记录 → 还原 全链路，结果写日志文件
+    if (process.argv.includes('--files-selftest')) {
+      const log: string[] = []
+      const w = (m: string) => log.push(m)
+      try {
+        initDb(DATA_DIR)
+        ensurePresetCategories()
+        const td = path.join(app.getPath('temp'), 'fc-selftest')
+        fs.rmSync(td, { recursive: true, force: true })
+        fs.mkdirSync(td, { recursive: true })
+        const src = path.join(td, '自测文档.txt')
+        fs.writeFileSync(src, 'hello world')
+
+        const item = addFileByPath(src)
+        w('收录返回: ' + (item ? '成功' : '失败'))
+        w('原文件还在原处: ' + fs.existsSync(src))
+        if (item) {
+          w('记录 orig_path: ' + item.origPath)
+          w('记录 path: ' + item.path)
+          w('收纳文件存在: ' + fs.existsSync(item.path))
+          const ok = restoreOne(item.id)
+          w('还原返回: ' + ok)
+          w('文件回到原处: ' + fs.existsSync(src))
+          const after = listFiles(null).length
+          w('还原后柜子里剩余: ' + after)
+        }
+      } catch (e) {
+        w('异常: ' + (e instanceof Error ? e.stack : String(e)))
+      }
+      fs.writeFileSync(path.join(APP_ROOT, 'fc-selftest.log'), log.join('\n'))
+      app.quit()
+      return
+    }
     migrateLegacyData()
     initDb(DATA_DIR)
     ensurePresetCategories()
@@ -1193,6 +1290,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc()
     ensureStartMenuShortcut()
     createMainWindow()
+  if (process.env.WDY_SHOT_DESK === '1') setTimeout(() => createDeskWindow(), 1200)
   // 截图用：直接扫一遍目录，再把界面切到文件视图
   if (process.env.WDY_SHOT_FILES === '1') {
     try {

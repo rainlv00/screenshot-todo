@@ -68,6 +68,22 @@ const api = {
     }
   },
 
+  // ---- 桌面分区 ----
+  desk: {
+    files: (): Promise<any[]> => ipcRenderer.invoke('desk:files'),
+    open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
+    reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
+    close: (): Promise<void> => ipcRenderer.invoke('desk:close'),
+    setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
+    onClosed: (cb: () => void): (() => void) => {
+      const h = () => cb()
+      ipcRenderer.on('desk:closed', h)
+      return () => {
+        ipcRenderer.removeListener('desk:closed', h)
+      }
+    }
+  },
+
   // ---- 更新 ----
   checkUpdate: (): Promise<UpdateInfo | null> => ipcRenderer.invoke('app:checkUpdate'),
   downloadUpdate: (info: UpdateInfo): Promise<{ status: string; percent: number; error?: string }> =>

@@ -250,9 +250,9 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
 
   const name = path.basename(absPath)
   const ext = path.extname(name).replace(/^\./, '').toLowerCase()
-  const existed = db.prepare('SELECT id, state FROM files WHERE orig_path = ?').get(absPath) as
-    | { id: string; state: string }
-    | undefined
+  const existed = db
+    .prepare('SELECT id, state FROM files WHERE path = ? OR orig_path = ?')
+    .get(absPath, absPath) as { id: string; state: string } | undefined
 
   // 已经收进来过的，只是更新一下状态
   if (existed && existed.state === 'inbox') {
@@ -273,15 +273,32 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
 
   const id = existed ? existed.id : `f_${randomUUID().slice(0, 8)}`
   const dstStat = fs.statSync(dst)
-  if (existed) {
-    db.prepare(
-      "UPDATE files SET path = ?, size = ?, mtime = ?, category_id = ?, state = 'inbox', missing = 0, moved_at = ?, last_seen = ? WHERE id = ?"
-    ).run(dst, dstStat.size, Math.floor(dstStat.mtimeMs / 1000), cat, now(), now(), id)
-  } else {
-    db.prepare(
-      "INSERT INTO files(id, path, orig_path, state, name, ext, size, mtime, category_id, added_at, moved_at, last_seen) VALUES(?,?,?,'inbox',?,?,?,?,?,?,?,?)"
-    ).run(id, dst, absPath, name, ext, dstStat.size, Math.floor(dstStat.mtimeMs / 1000), cat, now(), now(), now())
+  try {
+    if (existed) {
+      db.prepare(
+        "UPDATE files SET path = ?, orig_path = ?, size = ?, mtime = ?, category_id = ?, state = 'inbox', missing = 0, name = ?, ext = ?, moved_at = ?, last_seen = ? WHERE id = ?"
+      ).run(dst, absPath, dstStat.size, Math.floor(dstStat.mtimeMs / 1000), cat, name, ext, now(), now(), id)
+    } else {
+      db.prepare(
+        "INSERT INTO files(id, path, orig_path, state, name, ext, size, mtime, category_id, added_at, moved_at, last_seen) VALUES(?,?,?,'inbox',?,?,?,?,?,?,?,?)"
+      ).run(id, dst, absPath, name, ext, dstStat.size, Math.floor(dstStat.mtimeMs / 1000), cat, now(), now(), now())
+    }
+
+    // 记录必须带上原路径，否则以后还原不了 —— 这里核对一遍，出问题就把文件搬回去
+    const check = db.prepare('SELECT orig_path FROM files WHERE id = ?').get(id) as
+      | { orig_path: string }
+      | undefined
+    if (!check || !check.orig_path) {
+      safeMove(dst, absPath)
+      db.prepare('DELETE FROM files WHERE id = ?').run(id)
+      return null
+    }
+  } catch {
+    // 写库失败：文件也放回原处，绝不留在半路
+    safeMove(dst, absPath)
+    return null
   }
+
   const row = db.prepare('SELECT * FROM files WHERE id = ?').get(id) as any
   return rowToFile(row)
 }
@@ -423,4 +440,56 @@ export function scanDirs(): { added: number; scanned: number } {
     }
   }
   return { added, scanned }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 桌面分区：只读扫描，不移动任何文件                                   */
+/* ------------------------------------------------------------------ */
+
+export interface DeskFile {
+  name: string
+  path: string
+  ext: string
+  size: number
+  mtime: number
+  /** 是不是文件夹 */
+  dir: boolean
+}
+
+/** 读桌面上的文件/文件夹，按修改时间倒序。只读，绝不移动 */
+export function listDesktopFiles(): DeskFile[] {
+  const out: DeskFile[] = []
+  const seen = new Set<string>()
+  for (const dir of getWatchDirs()) {
+    let names: string[] = []
+    try {
+      names = fs.readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const n of names) {
+      if (n.startsWith('.') || n.startsWith('~$')) continue
+      const lower = n.toLowerCase()
+      if (['desktop.ini', 'thumbs.db', 'ehthumbs.db', 'iconcache.db'].includes(lower)) continue
+      const full = path.join(dir, n)
+      if (seen.has(lower)) continue
+      let st: fs.Stats
+      try {
+        st = fs.statSync(full)
+      } catch {
+        continue
+      }
+      seen.add(lower)
+      out.push({
+        name: n,
+        path: full,
+        ext: path.extname(n).replace(/^\./, '').toLowerCase(),
+        size: st.size,
+        mtime: Math.floor(st.mtimeMs / 1000),
+        dir: st.isDirectory()
+      })
+    }
+  }
+  return out.sort((a, b) => b.mtime - a.mtime)
 }
