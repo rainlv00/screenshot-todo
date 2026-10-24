@@ -39,6 +39,7 @@ const SWATCHES = ['blue', 'green', 'orange', 'red', 'yellow', 'pink', 'none']
 interface PanelStyle {
   color?: string
   width?: number
+  height?: number
   alpha?: number
 }
 
@@ -94,12 +95,17 @@ export default function DeskLayer() {
     return () => clearInterval(t)
   }, [load])
 
-  // 鼠标在面板上才接管，空白处穿透
+  // 鼠标在面板/弹层/按钮上才接管，空白处穿透到桌面
   useEffect(() => {
+    // 弹层开着的时候必须整窗可交互，否则点不到（会把整个桌面卡住）
+    if (newOpen || menuCat) {
+      window.api.desk.setInteractive(true)
+      return
+    }
     let over = false
     const onMove = (e: MouseEvent) => {
       const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-      const inside = !!el?.closest('[data-panel]')
+      const inside = !!el?.closest('[data-panel], .desk-add')
       if (inside !== over) {
         over = inside
         window.api.desk.setInteractive(inside)
@@ -110,7 +116,19 @@ export default function DeskLayer() {
       window.removeEventListener('mousemove', onMove)
       window.api.desk.setInteractive(false)
     }
-  }, [])
+  }, [newOpen, menuCat])
+
+  // ESC 是逃生口：不管卡在哪，按一下就能收起桌面层
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (newOpen) setNewOpen(false)
+      else if (menuCat) setMenuCat(null)
+      else void window.api.desk.close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [newOpen, menuCat])
 
   /** 拖动面板 */
   function startDragPanel(e: React.PointerEvent, id: string) {
@@ -148,6 +166,30 @@ export default function DeskLayer() {
           return cur
         })
       }
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  /** 拖右下角改尺寸 */
+  function startResize(e: React.PointerEvent, id: string) {
+    e.stopPropagation()
+    const panel = (e.currentTarget as HTMLElement).closest('.desk-panel') as HTMLElement | null
+    if (!panel) return
+    const rect = panel.getBoundingClientRect()
+    const startX = e.clientX
+    const startY = e.clientY
+    const baseW = rect.width
+    const baseH = rect.height
+
+    const onMove = (ev: PointerEvent) => {
+      const w = Math.max(150, Math.min(720, baseW + (ev.clientX - startX)))
+      const h = Math.max(74, Math.min(760, baseH + (ev.clientY - startY)))
+      patchStyle(id, { width: Math.round(w), height: Math.round(h) })
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -204,6 +246,7 @@ export default function DeskLayer() {
         const colorKey = st.color ?? cat.color
         const color = COLOR[colorKey] ?? COLOR.none
         const width = st.width ?? 226
+        const height = st.height
         const alpha = st.alpha ?? 0.72
         const isCollapsed = collapsed.has(cat.id)
         const p = pos[cat.id] ?? { x: 24 + (idx % 4) * (width + 22), y: 24 + Math.floor(idx / 4) * 300 }
@@ -218,6 +261,7 @@ export default function DeskLayer() {
               left: p.x,
               top: p.y,
               width,
+              height,
               background: `rgba(28, 32, 42, ${alpha})`,
               borderColor: colorKey === 'none' ? undefined : `${color}55`
             }}
@@ -264,7 +308,10 @@ export default function DeskLayer() {
 
             {!isCollapsed && (
               <>
-                <div className={`dp-body ${view === 'list' ? 'is-list' : ''}`}>
+                <div
+                  className={`dp-body ${view === 'list' ? 'is-list' : ''}`}
+                  style={height ? { maxHeight: undefined, flex: '1 1 auto' } : undefined}
+                >
                   {items.map((f) => (
                     <button
                       key={f.id}
@@ -299,6 +346,11 @@ export default function DeskLayer() {
                 </footer>
               </>
             )}
+            <span
+              className="dp-resize"
+              title="拖动改变大小"
+              onPointerDown={(e) => startResize(e, cat.id)}
+            />
           </section>
         )
       })}
@@ -329,22 +381,6 @@ export default function DeskLayer() {
                   title={c}
                   onClick={() => patchStyle(menuCat, { color: c })}
                 />
-              ))}
-            </div>
-            <label className="dm-label">宽度</label>
-            <div className="dm-seg">
-              {[
-                [200, '窄'],
-                [226, '标准'],
-                [280, '宽']
-              ].map(([w, label]) => (
-                <button
-                  key={w}
-                  className={(style[menuCat]?.width ?? 226) === w ? 'on' : ''}
-                  onClick={() => patchStyle(menuCat, { width: w as number })}
-                >
-                  {label}
-                </button>
               ))}
             </div>
             <label className="dm-label">背景不透明度</label>

@@ -3904,3 +3904,41 @@ html.desk-mode #root {
   margin-bottom: 10px;
   accent-color: #4a7dff;
 }
+
+/* 面板右下角拖拽改尺寸 */
+.dp-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  opacity: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0 45%,
+    rgba(255, 255, 255, 0.45) 45% 55%,
+    transparent 55% 70%,
+    rgba(255, 255, 255, 0.45) 70% 80%,
+    transparent 80%
+  );
+  transition: opacity 0.15s;
+}
+
+.desk-panel:hover .dp-resize {
+  opacity: 1;
+}
+
+/* 固定高度时，面板内部要能滚动，不能把 footer 挤出去 */
+.desk-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.desk-panel .dp-body {
+  overflow-y: auto;
+}
+
+.desk-panel > .dp-foot {
+  flex: 0 0 auto;
+}

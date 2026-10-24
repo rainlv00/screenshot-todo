@@ -247,7 +247,24 @@ function createDeskWindow(): void {
 
   loadRenderer(deskWin, 'desk=1')
   deskWin.setIgnoreMouseEvents(true, { forward: true })
-  deskWin.once('ready-to-show', () => deskWin?.showInactive())
+
+  // 穿透状态下渲染层收不到键盘，ESC 在这里兜底，保证永远能退出来
+  deskWin.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'Escape') deskWin?.close()
+  })
+  // 先透明再渐显，避免 Windows 上透明窗口首帧白闪
+  deskWin.once('ready-to-show', () => {
+    deskWin!.setOpacity(0)
+    deskWin!.showInactive()
+    mainWin?.moveTop()
+    setTimeout(() => {
+      try {
+        deskWin?.setOpacity(1)
+      } catch {
+        /* 窗口可能已关闭 */
+      }
+    }, 90)
+  })
   deskWin.on('closed', () => {
     deskWin = null
     mainWin?.webContents.send('desk:closed')
