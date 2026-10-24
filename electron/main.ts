@@ -1142,6 +1142,14 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     app.on('activate', () => showMain())
+  }).catch((e: unknown) => {
+    // 这里抛错以前是静默退出，什么都看不到
+    try {
+      dialog.showErrorBox('截图待办 启动失败', e instanceof Error ? e.message : String(e))
+    } catch {
+      /* 弹窗都弹不出来就算了 */
+    }
+    app.quit()
   })
 
   app.on('before-quit', () => {
