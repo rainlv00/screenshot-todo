@@ -23,7 +23,7 @@ Unicode true
 Name "${APPNAME}"
 OutFile "${OUTDIR}\ScreenshotTodo-Setup.exe"
 InstallDir "D:\Programs\${APPNAME}"
-InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
+; 故意不写 InstallDirRegKey：它会盖过 InstallDir，从旧版本升级时把用户带回 C 盘
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
