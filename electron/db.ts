@@ -182,7 +182,8 @@ export function getPrefs(): Prefs {
       return (['auto', 'black', 'white', 'blue', 'green', 'yellow'] as const).includes(v as never) ? (v as Prefs['textTone']) : 'auto'
     })(),
     hotkeyCapture: getSetting('hotkey_capture', 'Ctrl+Alt+V'),
-    hotkeyPause: getSetting('hotkey_pause', 'Ctrl+Alt+J')
+    hotkeyPause: getSetting('hotkey_pause', 'Ctrl+Alt+J'),
+    hotkeyDesk: getSetting('hotkey_desk', 'Alt+D')
   }
 }
 
@@ -207,6 +208,7 @@ export function setPrefs(p: Partial<Prefs>): Prefs {
   if (p.textTone !== undefined) setSetting('text_tone', p.textTone)
   if (p.hotkeyCapture !== undefined) setSetting('hotkey_capture', p.hotkeyCapture)
   if (p.hotkeyPause !== undefined) setSetting('hotkey_pause', p.hotkeyPause)
+  if (p.hotkeyDesk !== undefined) setSetting('hotkey_desk', p.hotkeyDesk)
   return getPrefs()
 }
 

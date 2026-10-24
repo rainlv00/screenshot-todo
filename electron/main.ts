@@ -67,6 +67,7 @@ import {
   syncDeskFiles,
   listDeskFiles
 } from './files'
+import { getIconsHidden, setIconsHidden } from './deskIcons'
 
 const isDev = !app.isPackaged
 const APP_ROOT = app.getAppPath()
@@ -216,6 +217,8 @@ function createFileWindow(): void {
 }
 
 let deskWin: BrowserWindow | null = null
+/** 打开分区前桌面图标本来是显示的话，关掉时要负责还原 */
+let iconsWereHidden = false
 
 /** 铺在桌面上的透明层：空白处鼠标穿透，面板上才响应 */
 function createDeskWindow(): void {
@@ -251,26 +254,12 @@ function createDeskWindow(): void {
   loadRenderer(deskWin, 'desk=1')
   deskWin.setIgnoreMouseEvents(true, { forward: true })
 
-  // 首次打开教一次怎么关系统桌面图标；勾过之后不再打扰
-  if (getSetting('desk_hide_tip_shown', '0') !== '1') {
-    setSetting('desk_hide_tip_shown', '1')
-    setTimeout(() => {
-      void dialog
-        .showMessageBox({
-          type: 'info',
-          buttons: ['知道了', '下次再说'],
-          defaultId: 0,
-          title: '让桌面更干净',
-          message: '系统桌面图标还显示着，会和分区里的文件重复',
-          detail:
-            '在桌面空白处右键 → 查看 → 取消勾选「显示桌面图标」\n\n' +
-            '这样桌面就只剩分区面板。想恢复的时候再勾上即可。\n' +
-            '这一步需要你自己操作，软件不去动系统设置。'
-        })
-        .then((r) => {
-          if (r.response === 1) setSetting('desk_hide_tip_shown', '0')
-        })
-    }, 800)
+  // 进分区就收起系统桌面图标，退出时原样还回去
+  if (getSetting('desk_hide_icons', '1') === '1') {
+    void getIconsHidden().then((already) => {
+      iconsWereHidden = !already
+      if (!already) void setIconsHidden(true)
+    })
   }
 
   // 穿透状态下渲染层收不到键盘，ESC 在这里兜底，保证永远能退出来
@@ -292,6 +281,10 @@ function createDeskWindow(): void {
   })
   deskWin.on('closed', () => {
     deskWin = null
+    if (iconsWereHidden) {
+      iconsWereHidden = false
+      void setIconsHidden(false)
+    }
     mainWin?.webContents.send('desk:closed')
   })
 
@@ -797,6 +790,11 @@ function registerHotkeys(): void {
   const onCapture = () => void captureFromClipboard('paste')
   // 快捷键必须和界面开关行为完全一致：切换"收还是不收"，不是临时暂停
   const onPause = () => void toggleCapture()
+  // 分区快捷键：已开就关，没开就开
+  const onDesk = () => {
+    if (deskWin && !deskWin.isDestroyed()) deskWin.close()
+    else createDeskWindow()
+  }
 
   /** 注册一个绑定；仅当它是出厂默认值且被占用时，才自动换成可用的候选 */
   function bind(acc: string, fn: () => void, isDefault: boolean): string {

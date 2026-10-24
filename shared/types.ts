@@ -62,6 +62,8 @@ export interface Prefs {
   hotkeyCapture: string
   /** 全局快捷键：暂停/恢复收录 */
   hotkeyPause: string
+  /** 打开/关闭桌面分区的快捷键 */
+  hotkeyDesk: string
   /** 列表 / 宫格 */
   view: ViewMode
   /** 字号档位 */

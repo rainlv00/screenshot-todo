@@ -35,7 +35,8 @@ const DEFAULT_PREFS: Prefs = {
   fontSize: 'normal',
   textTone: 'auto',
   hotkeyCapture: 'Ctrl+Alt+V',
-  hotkeyPause: 'Ctrl+Alt+J'
+  hotkeyPause: 'Ctrl+Alt+J',
+  hotkeyDesk: 'Alt+D'
 }
 
 const DARK_COLORS = new Set(['gray', 'black', 'blue', 'green'])
@@ -556,43 +557,65 @@ export default function App() {
         <FestivalBar onOpen={() => setCalOpen(true)} />
 
         <footer className="footer">
-          <button
-            className={`rec ${capturing ? 'on' : 'off'}`}
-            onClick={toggleCapture}
-            role="switch"
-            aria-checked={capturing}
-            title={capturing ? '点一下停止自动收录' : '点一下开始自动收录'}
-          >
-            <span className="rec-track">
-              <span className="rec-knob" />
-            </span>
-            <span className="rec-label">{capturing ? '收录中' : '已停止'}</span>
-          </button>
+          <div className="foot-item">
+            <button
+              className={`rec ${capturing ? 'on' : 'off'}`}
+              onClick={toggleCapture}
+              role="switch"
+              aria-checked={capturing}
+              title={capturing ? '点一下停止自动收录' : '点一下开始自动收录'}
+            >
+              <span className="rec-track">
+                <span className="rec-knob" />
+              </span>
+              <span className="rec-label">{capturing ? '收录中' : '已停止'}</span>
+            </button>
+            <button
+              className="kbd-chip"
+              onClick={toggleCapture}
+              title="快捷键，按一下也能切换"
+            >
+              {prettyAccel(prefs.hotkeyPause).join(' + ')}
+            </button>
+          </div>
 
-          <button
-            className={`rec desk-sw ${cabinetOpen ? 'on' : 'off'}`}
-            onClick={async () => {
-              if (!cabinetOpen) {
-                await window.api.files.openWindow()
-                setCabinetOpen(true)
-              } else {
-                await window.api.desk.close()
-                setCabinetOpen(false)
-              }
-            }}
-            role="switch"
-            aria-checked={cabinetOpen}
-            title={cabinetOpen ? '点一下关闭桌面分区' : '点一下在桌面显示分区'}
-          >
-            <span className="rec-track">
-              <span className="rec-knob" />
-            </span>
-            <span className="rec-label">分区</span>
-          </button>
-
-          <button className="kbd-chip" onClick={toggleCapture} title="快捷键，按一下也能切换">
-            {prettyAccel(prefs.hotkeyPause).join(' + ')}
-          </button>
+          <div className="foot-item">
+            <button
+              className={`rec desk-sw ${cabinetOpen ? 'on' : 'off'}`}
+              onClick={async () => {
+                if (!cabinetOpen) {
+                  await window.api.files.openWindow()
+                  setCabinetOpen(true)
+                } else {
+                  await window.api.desk.close()
+                  setCabinetOpen(false)
+                }
+              }}
+              role="switch"
+              aria-checked={cabinetOpen}
+              title={cabinetOpen ? '点一下关闭桌面分区' : '点一下在桌面显示分区'}
+            >
+              <span className="rec-track">
+                <span className="rec-knob" />
+              </span>
+              <span className="rec-label">分区</span>
+            </button>
+            <button
+              className="kbd-chip"
+              onClick={async () => {
+                if (cabinetOpen) {
+                  await window.api.desk.close()
+                  setCabinetOpen(false)
+                } else {
+                  await window.api.files.openWindow()
+                  setCabinetOpen(true)
+                }
+              }}
+              title="快捷键，按一下也能切换分区"
+            >
+              {prettyAccel(prefs.hotkeyDesk || 'Alt+D').join(' + ')}
+            </button>
+          </div>
 
           <button className="btn paste-btn" onClick={pasteNow}>
             收录剪贴板

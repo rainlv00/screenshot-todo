@@ -4143,3 +4143,28 @@ html.desk-mode #root {
   font-size: 12px;
   pointer-events: none;
 }
+
+/* 底部：开关在上、快捷键在下 */
+.footer {
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.foot-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.foot-item .kbd-chip {
+  height: 16px;
+  padding: 0 6px;
+  font-size: 9.5px;
+  line-height: 16px;
+  opacity: 0.75;
+}
+
+.foot-item .kbd-chip:hover {
+  opacity: 1;
+}

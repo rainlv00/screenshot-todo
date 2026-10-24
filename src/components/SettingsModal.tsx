@@ -75,6 +75,22 @@ export function SettingsModal({ prefs, onPatch, onOpenHelp, onClose }: Props) {
 
           <div className="row">
             <div className="row-main">
+              <div className="row-title">打开 / 关闭桌面分区</div>
+              <div className="row-sub">按一下把分区面板铺到桌面上，再按收起</div>
+            </div>
+            <HotkeyField value={p.hotkeyDesk} onChange={(acc) => set({ hotkeyDesk: acc }, true)} />
+          </div>
+
+          <div className="row">
+            <div className="row-main">
+              <div className="row-title">打开 / 关闭桌面分区</div>
+              <div className="row-sub">按一下把分区面板铺到桌面上，再按收起</div>
+            </div>
+            <HotkeyField value={p.hotkeyDesk} onChange={(acc) => set({ hotkeyDesk: acc }, true)} />
+          </div>
+
+          <div className="row">
+            <div className="row-main">
               <div className="row-title">暂停 / 恢复收录</div>
               <div className="row-sub">
                 {hk.pause ? '做教程、发图给别人时按一下，再按恢复' : <span className="hk-warn">未生效：已被其他程序占用，换一个</span>}
