@@ -71,6 +71,7 @@ const api = {
   // ---- 桌面分区 ----
   desk: {
     files: (): Promise<any[]> => ipcRenderer.invoke('desk:files'),
+    collect: (): Promise<{ added: number; total: number }> => ipcRenderer.invoke('desk:collect'),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
     close: (): Promise<void> => ipcRenderer.invoke('desk:close'),

@@ -76,6 +76,8 @@ export default function DeskLayer() {
   const [dragOverCat, setDragOverCat] = useState<string | null>(null)
   const [style, setStyle] = useState<Record<string, PanelStyle>>(loadStyle)
   const [menuCat, setMenuCat] = useState<string | null>(null)
+  const [tip, setTip] = useState('')
+  const [collecting, setCollecting] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newExts, setNewExts] = useState('')
@@ -106,7 +108,7 @@ export default function DeskLayer() {
     let over = false
     const onMove = (e: MouseEvent) => {
       const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-      const inside = !!el?.closest('[data-panel], .desk-add')
+      const inside = !!el?.closest('[data-panel], .desk-collect')
       if (inside !== over) {
         over = inside
         window.api.desk.setInteractive(inside)
@@ -391,21 +393,36 @@ export default function DeskLayer() {
       })}
 
       <button
-        className="desk-add"
-        style={{
-          left: 24 + (visible.length % 4) * 248,
-          top: 24 + Math.floor(visible.length / 4) * 300
+        className={`desk-collect ${collecting ? 'is-busy' : ''}`}
+        title="扫一遍桌面，把新出现的文件收进对应分区"
+        onClick={async () => {
+          if (collecting) return
+          setCollecting(true)
+          const r = await window.api.desk.collect()
+          await load()
+          setCollecting(false)
+          setTip(r.added > 0 ? `收进来 ${r.added} 个新文件` : '没有新文件，共 ' + r.total + ' 个')
+          window.setTimeout(() => setTip(''), 2400)
         }}
-        onClick={() => setNewOpen(true)}
-        title="新建分区"
       >
-        + 新建分区
+        {collecting ? '收集中…' : '一键收录'}
       </button>
+
+      {tip && <div className="desk-tip">{tip}</div>}
 
       {menuCat && (
         <div className="desk-modal-mask" onClick={() => setMenuCat(null)}>
           <div className="desk-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="dm-title">分区样式</div>
+            <div className="dm-title">分区设置</div>
+            <button
+              className="dm-newcat"
+              onClick={() => {
+                setMenuCat(null)
+                setNewOpen(true)
+              }}
+            >
+              + 新建分区
+            </button>
             <label className="dm-label">颜色</label>
             <div className="dm-swatches">
               {SWATCHES.map((c) => (

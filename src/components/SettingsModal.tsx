@@ -143,7 +143,7 @@ export function SettingsModal({ prefs, onPatch, onOpenHelp, onClose }: Props) {
 
           <div className="row">
             <div className="row-main">
-              <div className="row-title">每日提醒</div>
+              <div className="row-title">提醒</div>
               <div className="row-sub">到点提醒你过一遍，没有待办时不打扰</div>
             </div>
             <input
@@ -154,6 +154,63 @@ export function SettingsModal({ prefs, onPatch, onOpenHelp, onClose }: Props) {
             />
             <Switch on={p.dailyRemindEnabled} onChange={(v) => set({ dailyRemindEnabled: v }, true)} />
           </div>
+
+          <div className="row">
+            <div className="row-main">
+              <div className="row-title">提醒频率</div>
+              <div className="row-sub">
+                {p.remindMode === 'weekly' ? '只在选中的星期提醒' : '每天都提醒'}
+              </div>
+            </div>
+            <div className="seg seg-sm">
+              {([
+                ['daily', '每天'],
+                ['weekly', '每周']
+              ] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  className={p.remindMode === k ? 'on' : ''}
+                  onClick={() => set({ remindMode: k }, true)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {p.remindMode === 'weekly' && (
+            <div className="row weekday-row">
+              <div className="row-main">
+                <div className="row-title">星期几</div>
+                <div className="row-sub">可多选，空选则按周一至周五</div>
+              </div>
+              <div className="weekday-picker">
+                {[
+                  [1, '一'],
+                  [2, '二'],
+                  [3, '三'],
+                  [4, '四'],
+                  [5, '五'],
+                  [6, '六'],
+                  [7, '日']
+                ].map(([n, label]) => (
+                  <button
+                    key={n}
+                    className={p.remindWeekdays.includes(n as number) ? 'on' : ''}
+                    onClick={() => {
+                      const cur = p.remindWeekdays
+                      const next = cur.includes(n as number)
+                        ? cur.filter((x) => x !== n)
+                        : [...cur, n as number].sort((a, b) => a - b)
+                      set({ remindWeekdays: next.length ? next : [1, 2, 3, 4, 5] }, true)
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="group-title">其他</div>
 

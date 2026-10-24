@@ -4041,3 +4041,101 @@ html.desk-mode #root {
   cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
+
+/* 提醒频率 */
+.seg.seg-sm button {
+  height: 26px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.weekday-row {
+  align-items: flex-start;
+}
+
+.weekday-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.weekday-picker button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(20, 24, 40, 0.14);
+  background: #fff;
+  color: #5f636e;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.weekday-picker button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* 分区设置里的新建分区入口 */
+.dm-newcat {
+  width: 100%;
+  height: 32px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cdd5e4;
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.dm-newcat:hover {
+  background: rgba(74, 125, 255, 0.22);
+  border-color: rgba(74, 125, 255, 0.8);
+  color: #fff;
+}
+
+/* 一键收录 */
+.desk-collect {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(28, 32, 42, 0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: #e8ecf6;
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.desk-collect:hover {
+  background: rgba(74, 125, 255, 0.35);
+  border-color: rgba(74, 125, 255, 0.8);
+  color: #fff;
+}
+
+.desk-collect.is-busy {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.desk-tip {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  background: rgba(20, 24, 40, 0.88);
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+}

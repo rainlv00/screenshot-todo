@@ -34,6 +34,10 @@ export type MarkColor = 'none' | 'red' | 'orange' | 'green'
 export interface Prefs {
   dailyRemindAt: string
   dailyRemindEnabled: boolean
+  /** 提醒频率：每天 / 每周指定几天 */
+  remindMode: 'daily' | 'weekly'
+  /** 每周提醒的星期，1=周一 … 7=周日 */
+  remindWeekdays: number[]
   clipboardWatch: boolean
   autostart: boolean
   /** 窗口始终置顶 */

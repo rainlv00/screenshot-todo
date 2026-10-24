@@ -33,6 +33,8 @@ import {
   hashExists,
   getPrefs,
   setPrefs,
+  getSetting,
+  setSetting,
   reorderTasks,
   setPinned,
   setColor
@@ -62,7 +64,8 @@ import {
   restoreOne,
   restoreAll,
   storageRoot,
-  syncDeskFiles
+  syncDeskFiles,
+  listDeskFiles
 } from './files'
 
 const isDev = !app.isPackaged
@@ -247,6 +250,28 @@ function createDeskWindow(): void {
 
   loadRenderer(deskWin, 'desk=1')
   deskWin.setIgnoreMouseEvents(true, { forward: true })
+
+  // 首次打开教一次怎么关系统桌面图标；勾过之后不再打扰
+  if (getSetting('desk_hide_tip_shown', '0') !== '1') {
+    setSetting('desk_hide_tip_shown', '1')
+    setTimeout(() => {
+      void dialog
+        .showMessageBox({
+          type: 'info',
+          buttons: ['知道了', '下次再说'],
+          defaultId: 0,
+          title: '让桌面更干净',
+          message: '系统桌面图标还显示着，会和分区里的文件重复',
+          detail:
+            '在桌面空白处右键 → 查看 → 取消勾选「显示桌面图标」\n\n' +
+            '这样桌面就只剩分区面板。想恢复的时候再勾上即可。\n' +
+            '这一步需要你自己操作，软件不去动系统设置。'
+        })
+        .then((r) => {
+          if (r.response === 1) setSetting('desk_hide_tip_shown', '0')
+        })
+    }, 800)
+  }
 
   // 穿透状态下渲染层收不到键盘，ESC 在这里兜底，保证永远能退出来
   deskWin.webContents.on('before-input-event', (_e, input) => {
@@ -1060,6 +1085,13 @@ function registerIpc(): void {
   ipcMain.handle('files:openWindow', () => createDeskWindow())
   ipcMain.handle('desk:close', () => deskWin?.close())
   ipcMain.handle('desk:files', () => syncDeskFiles())
+  /** 一键收录：立刻扫一遍桌面，把新出现的文件归到对应分区 */
+  ipcMain.handle('desk:collect', () => {
+    const before = listDeskFiles().length
+    syncDeskFiles()
+    const after = listDeskFiles().length
+    return { added: Math.max(0, after - before), total: after }
+  })
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
   ipcMain.on('desk:interactive', (_e, on: boolean) => {

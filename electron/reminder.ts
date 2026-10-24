@@ -19,19 +19,45 @@ export function startDailyReminder(opts: { onClick: () => void; getTray: () => T
   let timer: NodeJS.Timeout | null = null
   let guard: NodeJS.Timeout | null = null
 
+  /** 下一个触发时刻：每天模式就是今天/明天；每周模式要跳过没选中的星期 */
   function targetTs(): number {
-    const timeStr = getPrefs().dailyRemindAt || '08:30'
+    const prefs = getPrefs()
+    const timeStr = prefs.dailyRemindAt || '08:30'
     const [h, m] = timeStr.split(':').map((x) => parseInt(x, 10))
-    const d = new Date()
-    d.setHours(Number.isFinite(h) ? h : 8, Number.isFinite(m) ? m : 30, 0, 0)
-    return d.getTime()
+    const hh = Number.isFinite(h) ? h : 8
+    const mm = Number.isFinite(m) ? m : 30
+
+    const now = Date.now()
+    // 最多往后找 8 天，一定命中
+    for (let i = 0; i < 8; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() + i)
+      d.setHours(hh, mm, 0, 0)
+      if (d.getTime() <= now) continue
+      if (prefs.remindMode === 'weekly') {
+        const wd = d.getDay() === 0 ? 7 : d.getDay()
+        if (!prefs.remindWeekdays.includes(wd)) continue
+      }
+      return d.getTime()
+    }
+    return now + 86_400_000
   }
 
   function fire(): void {
     const prefs = getPrefs()
     if (!prefs.dailyRemindEnabled) return
     if (getSetting('last_remind_date', '') === todayKey()) return
-    if (Date.now() < targetTs()) return
+    // 每周模式：今天不是选中的星期就跳过
+    if (prefs.remindMode === 'weekly') {
+      const now = new Date()
+      const wd = now.getDay() === 0 ? 7 : now.getDay()
+      if (!prefs.remindWeekdays.includes(wd)) return
+    }
+    // 还没到当天的提醒时间就不发
+    const [h, m] = (prefs.dailyRemindAt || '08:30').split(':').map((x) => parseInt(x, 10))
+    const todayTarget = new Date()
+    todayTarget.setHours(Number.isFinite(h) ? h : 8, Number.isFinite(m) ? m : 30, 0, 0)
+    if (Date.now() < todayTarget.getTime()) return
 
     setSetting('last_remind_date', todayKey())
 

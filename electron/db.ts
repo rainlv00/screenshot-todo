@@ -151,6 +151,15 @@ export function getPrefs(): Prefs {
   return {
     dailyRemindAt: getSetting('daily_remind_at', '08:30'),
     dailyRemindEnabled: getSetting('daily_remind_enabled', '1') === '1',
+    remindMode: getSetting('remind_mode', 'daily') === 'weekly' ? 'weekly' : 'daily',
+    remindWeekdays: (() => {
+      try {
+        const arr = JSON.parse(getSetting('remind_weekdays', '[1,2,3,4,5]'))
+        return Array.isArray(arr) && arr.length ? arr.filter((n) => n >= 1 && n <= 7) : [1, 2, 3, 4, 5]
+      } catch {
+        return [1, 2, 3, 4, 5]
+      }
+    })(),
     clipboardWatch: getSetting('clipboard_watch', '1') === '1',
     autostart: getSetting('autostart', '0') === '1',
     alwaysOnTop: getSetting('always_on_top', '0') === '1',
@@ -179,6 +188,8 @@ export function getPrefs(): Prefs {
 
 export function setPrefs(p: Partial<Prefs>): Prefs {
   if (p.dailyRemindAt !== undefined) setSetting('daily_remind_at', p.dailyRemindAt)
+  if (p.remindMode !== undefined) setSetting('remind_mode', p.remindMode)
+  if (p.remindWeekdays !== undefined) setSetting('remind_weekdays', JSON.stringify(p.remindWeekdays))
   if (p.dailyRemindEnabled !== undefined) setSetting('daily_remind_enabled', p.dailyRemindEnabled ? '1' : '0')
   if (p.clipboardWatch !== undefined) setSetting('clipboard_watch', p.clipboardWatch ? '1' : '0')
   if (p.autostart !== undefined) setSetting('autostart', p.autostart ? '1' : '0')

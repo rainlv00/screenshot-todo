@@ -18,6 +18,8 @@ type Tab = 'pending' | 'done'
 const DEFAULT_PREFS: Prefs = {
   dailyRemindAt: '08:30',
   dailyRemindEnabled: true,
+  remindMode: 'daily',
+  remindWeekdays: [1, 2, 3, 4, 5],
   clipboardWatch: true,
   autostart: false,
   alwaysOnTop: true,
