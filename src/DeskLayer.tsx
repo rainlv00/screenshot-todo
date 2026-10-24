@@ -77,6 +77,9 @@ export default function DeskLayer() {
   const [style, setStyle] = useState<Record<string, PanelStyle>>(loadStyle)
   const [menuCat, setMenuCat] = useState<string | null>(null)
   const [tip, setTip] = useState('')
+  const [icons, setIcons] = useState<Record<string, string>>({})
+  const iconRef = useRef<Record<string, string>>({})
+  const iconPending = useRef<Set<string>>(new Set())
   const [collecting, setCollecting] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -97,6 +100,30 @@ export default function DeskLayer() {
     const t = setInterval(() => void load(), 6000)
     return () => clearInterval(t)
   }, [load])
+
+  // 逐个取真实图标（图片出缩略图），异步补上不影响首屏
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      for (const f of files) {
+        if (cancelled) return
+        if (iconRef.current[f.path] || iconPending.current.has(f.path)) continue
+        iconPending.current.add(f.path)
+        try {
+          const url = (await window.api.desk.icon(f.path, f.ext, false)) as string
+          if (url && !cancelled) {
+            iconRef.current[f.path] = url
+            setIcons({ ...iconRef.current })
+          }
+        } finally {
+          iconPending.current.delete(f.path)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [files])
 
   // 鼠标在面板/弹层/按钮上才接管，空白处穿透到桌面
   useEffect(() => {
@@ -356,9 +383,13 @@ export default function DeskLayer() {
                       title={`${f.name}\n${fmtSize(f.size)}\n双击打开，可拖到其它分区`}
                       onDoubleClick={() => void window.api.desk.open(f.path)}
                     >
-                      <span className="dp-ext" style={{ background: `${color}26`, color }}>
-                        {(f.ext || '?').slice(0, 4).toUpperCase()}
-                      </span>
+                      {icons[f.path] ? (
+                        <img className="dp-ico" src={icons[f.path]} alt="" draggable={false} />
+                      ) : (
+                        <span className="dp-ext" style={{ background: `${color}26`, color }}>
+                          {(f.ext || '?').slice(0, 4).toUpperCase()}
+                        </span>
+                      )}
                       <span className="dp-name">{f.name}</span>
                       {view === 'list' && <span className="dp-size">{fmtSize(f.size)}</span>}
                     </button>

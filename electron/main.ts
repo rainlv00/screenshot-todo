@@ -216,6 +216,33 @@ function createFileWindow(): void {
   }
 }
 
+/** 文件图标缓存：图片按路径缓存缩略图，其它按扩展名缓存系统图标 */
+const iconCache = new Map<string, string>()
+
+async function getFileIconUrl(p: string, ext: string, isDir: boolean): Promise<string> {
+  const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'heic']
+  const key = imgExts.includes(ext) ? `p:${p}` : `e:${isDir ? 'dir' : ext || 'file'}`
+  const hit = iconCache.get(key)
+  if (hit) return hit
+
+  let url = ''
+  try {
+    if (imgExts.includes(ext)) {
+      // 图片直接出缩略图，比系统图标直观
+      const thumb = await nativeImage.createThumbnailFromPath(p, { width: 96, height: 96 })
+      if (!thumb.isEmpty()) url = thumb.toDataURL()
+    }
+    if (!url) {
+      const ico = await app.getFileIcon(p, { size: 'normal' })
+      if (!ico.isEmpty()) url = ico.toDataURL()
+    }
+  } catch {
+    /* 读不到就不显示图标 */
+  }
+  if (url) iconCache.set(key, url)
+  return url
+}
+
 let deskWin: BrowserWindow | null = null
 /** 打开分区前桌面图标本来是显示的话，关掉时要负责还原 */
 let iconsWereHidden = false
@@ -301,6 +328,62 @@ function createDeskWindow(): void {
       }, 2600)
     })
   }
+}
+
+let previewWin: BrowserWindow | null = null
+
+/** 图片预览独立窗口：大小位置独立记忆，不受主窗口限制 */
+function createPreviewWindow(imagePath: string, title: string): void {
+  if (previewWin && !previewWin.isDestroyed()) {
+    previewWin.webContents.send('preview:set', imagePath, title)
+    previewWin.show()
+    previewWin.focus()
+    return
+  }
+
+  let bounds: { x?: number; y?: number; width: number; height: number } = { width: 860, height: 660 }
+  try {
+    const saved = getSetting('preview_bounds', '')
+    if (saved) Object.assign(bounds, JSON.parse(saved))
+  } catch {
+    /* 用默认尺寸 */
+  }
+
+  previewWin = new BrowserWindow({
+    ...bounds,
+    minWidth: 380,
+    minHeight: 280,
+    title: title || '查看图片',
+    icon: ICON_BIG,
+    autoHideMenuBar: true,
+    backgroundColor: '#101218',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false
+    }
+  })
+
+  loadRenderer(previewWin, 'preview=1')
+  previewWin.webContents.once('did-finish-load', () => {
+    previewWin?.webContents.send('preview:set', imagePath, title)
+  })
+
+  const saveBounds = (): void => {
+    try {
+      if (previewWin && !previewWin.isDestroyed()) {
+        setSetting('preview_bounds', JSON.stringify(previewWin.getBounds()))
+      }
+    } catch {
+      /* 忽略 */
+    }
+  }
+  previewWin.on('resize', saveBounds)
+  previewWin.on('move', saveBounds)
+  previewWin.on('closed', () => {
+    previewWin = null
+  })
 }
 
 function createMainWindow(): void {
@@ -1091,6 +1174,8 @@ function registerIpc(): void {
     return { added: Math.max(0, after - before), total: after }
   })
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
+  ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
+  ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
   ipcMain.on('desk:interactive', (_e, on: boolean) => {
     deskWin?.setIgnoreMouseEvents(!on, { forward: true })

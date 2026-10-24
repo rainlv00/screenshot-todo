@@ -4168,3 +4168,195 @@ html.desk-mode #root {
 .foot-item .kbd-chip:hover {
   opacity: 1;
 }
+
+/* 真实文件图标 */
+.dp-ico {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.dp-body.is-list .dp-ico {
+  width: 26px;
+  height: 26px;
+}
+
+/* ============ 独立图片预览窗口 ============ */
+html.preview-mode,
+html.preview-mode body,
+html.preview-mode #root {
+  height: 100%;
+  margin: 0;
+  background: #101218;
+  overflow: hidden;
+}
+
+.pv {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #101218;
+  font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+}
+
+.pv-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.pv-box.can-pan {
+  cursor: grab;
+}
+
+.pv-box.is-dragging {
+  cursor: grabbing;
+}
+
+.pv-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  transition: transform 0.04s linear;
+  will-change: transform;
+}
+
+.pv-empty {
+  color: #5a6072;
+  font-size: 13px;
+}
+
+.pv-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 14px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pv-bar button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #dfe4ee;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pv-bar button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pv-zoom {
+  min-width: 48px;
+  text-align: center;
+  font-size: 12px;
+  color: #dfe4ee;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-hint {
+  margin-left: 6px;
+  font-size: 10.5px;
+  color: #6b7285;
+}
+
+/* ============ 独立图片预览窗口 ============ */
+html.preview-mode,
+html.preview-mode body,
+html.preview-mode #root {
+  height: 100%;
+  margin: 0;
+  background: #101218;
+  overflow: hidden;
+}
+
+.pv {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #101218;
+  font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+}
+
+.pv-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.pv-box.can-pan {
+  cursor: grab;
+}
+
+.pv-box.is-dragging {
+  cursor: grabbing;
+}
+
+.pv-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  transition: transform 0.04s linear;
+  will-change: transform;
+}
+
+.pv-empty {
+  color: #5a6072;
+  font-size: 13px;
+}
+
+.pv-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 14px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pv-bar button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #dfe4ee;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pv-bar button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pv-zoom {
+  min-width: 48px;
+  text-align: center;
+  font-size: 12px;
+  color: #dfe4ee;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-hint {
+  margin-left: 6px;
+  font-size: 10.5px;
+  color: #6b7285;
+}

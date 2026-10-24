@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MarkColor, ListResult, Prefs, Task } from '../shared/types'
 import { TaskCard } from './components/TaskCard'
 import { GridCard } from './components/GridCard'
-import { Preview } from './components/Preview'
 import { SettingsModal } from './components/SettingsModal'
 import { TopBar } from './components/TopBar'
 import { HelpModal } from './components/HelpModal'
@@ -44,7 +43,7 @@ const DARK_COLORS = new Set(['gray', 'black', 'blue', 'green'])
 export default function App() {
   const [data, setData] = useState<ListResult>({ pending: [], done: [], pendingCount: 0 })
   const [tab, setTab] = useState<Tab>('pending')
-  const [preview, setPreview] = useState<Task | null>(null)
+
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [cropping, setCropping] = useState<{ file: string; width: number; height: number } | null>(null)
@@ -362,7 +361,7 @@ export default function App() {
               variant={variant}
               index={seqMap.get(t.id) ?? 0}
               onToggle={toggle}
-              onPreview={setPreview}
+              onPreview={(t: Task) => void window.api.preview.open(t.imagePath, t.title)}
               onRemove={removeTask}
               onPin={togglePin}
               onColor={markColor}
@@ -381,7 +380,7 @@ export default function App() {
         variant={variant}
         index={seqMap.get(t.id) ?? 0}
         onToggle={toggle}
-        onPreview={setPreview}
+        onPreview={(t: Task) => void window.api.preview.open(t.imagePath, t.title)}
         onTitle={changeTitle}
         onDue={changeDue}
         onRemove={removeTask}
@@ -625,7 +624,7 @@ export default function App() {
       </div>
 
       {flash && <div className="flash">{flash}</div>}
-      {preview && <Preview task={preview} onClose={() => setPreview(null)} />}
+
       {settingsOpen && (
         <SettingsModal
           prefs={prefs}

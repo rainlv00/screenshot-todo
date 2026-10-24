@@ -72,6 +72,8 @@ const api = {
   desk: {
     files: (): Promise<any[]> => ipcRenderer.invoke('desk:files'),
     collect: (): Promise<{ added: number; total: number }> => ipcRenderer.invoke('desk:collect'),
+    icon: (p: string, ext: string, isDir: boolean): Promise<string> =>
+      ipcRenderer.invoke('desk:icon', p, ext, isDir),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
     close: (): Promise<void> => ipcRenderer.invoke('desk:close'),
@@ -81,6 +83,18 @@ const api = {
       ipcRenderer.on('desk:closed', h)
       return () => {
         ipcRenderer.removeListener('desk:closed', h)
+      }
+    }
+  },
+
+  // ---- 图片预览 ----
+  preview: {
+    open: (img: string, title: string): Promise<void> => ipcRenderer.invoke('preview:open', img, title),
+    onSet: (cb: (img: string, title: string) => void): (() => void) => {
+      const h = (_e: unknown, img: string, title: string) => cb(img, title)
+      ipcRenderer.on('preview:set', h as never)
+      return () => {
+        ipcRenderer.removeListener('preview:set', h as never)
       }
     }
   },
