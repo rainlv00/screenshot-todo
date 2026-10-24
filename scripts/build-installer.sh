@@ -27,4 +27,4 @@ MSYS_NO_PATHCONV=1 "$MAKENSIS" -INPUTCHARSET UTF8 \
   installer.nsi
 
 cd ..
-ls -la "release/截图待办-Setup-$VER.exe" | awk '{printf "安装包: %.1f MB\n", $5/1048576}'
+ls -la "release/ScreenshotTodo-Setup-$VER.exe" | awk '{printf "安装包: %.1f MB\n", $5/1048576}'

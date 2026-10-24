@@ -19,7 +19,7 @@ node scripts/pack.js
 echo "--- 3/4 编译安装包（约 5 分钟）"
 bash scripts/build-installer.sh
 
-SETUP="release/截图待办-Setup-$VER.exe"
+SETUP="release/ScreenshotTodo-Setup-$VER.exe"
 if [ ! -f "$SETUP" ]; then
   echo "安装包没生成，中止"
   exit 1

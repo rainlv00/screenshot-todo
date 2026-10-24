@@ -21,7 +21,7 @@ Unicode true
 !define REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\截图待办"
 
 Name "${APPNAME}"
-OutFile "${OUTDIR}\截图待办-Setup-${VERSION}.exe"
+OutFile "${OUTDIR}\ScreenshotTodo-Setup-${VERSION}.exe"
 InstallDir "$LOCALAPPDATA\Programs\${APPNAME}"
 InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
 RequestExecutionLevel user
