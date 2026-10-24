@@ -50,6 +50,7 @@ export default function App() {
   const [overId, setOverId] = useState<string | null>(null)
   // 拖拽过程中 dragId 要用 ref 同步拿，state 是异步的，首帧 dragover 会拿不到
   const dragIdRef = useRef<string | null>(null)
+  const overIdRef = useRef<string | null>(null)
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [bgVer, setBgVer] = useState(1)
   const [loaded, setLoaded] = useState(false)
@@ -199,35 +200,19 @@ export default function App() {
     say('已恢复自动收录')
   }
 
-  function onDragStart(id: string) {
-    dragIdRef.current = id
-    setDragId(id)
-  }
-
-  function onDragOver(e: React.DragEvent, id: string) {
-    if (!dragIdRef.current) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    if (id !== overId) setOverId(id)
-  }
-
-  function onDrop(e: React.DragEvent, id: string) {
-    e.preventDefault()
-    const from = dragIdRef.current
-    dragIdRef.current = null
-    setDragId(null)
-    setOverId(null)
-    if (!from || from === id) return
+  /** 松手后落位：只有同一组（都置顶或都不置顶）之间才允许换位 */
+  function applyReorder(from: string, to: string) {
+    if (from === to) return
     const fromTask = data.pending.find((t) => t.id === from)
-    const toTask = data.pending.find((t) => t.id === id)
+    const toTask = data.pending.find((t) => t.id === to)
     if (!fromTask || !toTask) return
-    if (fromTask.pinned || toTask.pinned) {
-      say('置顶的待办不参与排序，先取消置顶')
+    if (fromTask.pinned !== toTask.pinned) {
+      say('置顶的和普通的不能混排')
       return
     }
     const ids = data.pending.map((t) => t.id)
     const i = ids.indexOf(from)
-    const j = ids.indexOf(id)
+    const j = ids.indexOf(to)
     if (i < 0 || j < 0) return
     const [moved] = ids.splice(i, 1)
     // 删除后目标索引会前移，往下拖时要减一，才能真正落到目标位置
@@ -235,10 +220,60 @@ export default function App() {
     void window.api.reorder(ids)
   }
 
-  function onDragEnd() {
-    dragIdRef.current = null
-    setDragId(null)
-    setOverId(null)
+  /**
+   * 用 pointer 事件自己实现拖拽。
+   * HTML5 的 draggable 在 Electron 里行为不稳定，而且按钮点击会和它抢事件。
+   */
+  function beginDrag(e: React.PointerEvent, id: string) {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('.actions, .pin-corner, .ci-dot, input, textarea, .color-inline')) return
+
+    const startX = e.clientX
+    const startY = e.clientY
+    let active = false
+
+    const onMove = (ev: PointerEvent) => {
+      if (!active) {
+        if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) return
+        active = true
+        dragIdRef.current = id
+        setDragId(id)
+        document.body.classList.add('is-reordering')
+      }
+      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null
+      const card = el?.closest('[data-task-id]')
+      const over = card?.getAttribute('data-task-id') ?? null
+      if (over !== overIdRef.current) {
+        overIdRef.current = over
+        setOverId(over)
+      }
+      // 拖到边缘自动滚动
+      const main = document.querySelector('.list') as HTMLElement | null
+      if (main) {
+        const r = main.getBoundingClientRect()
+        if (ev.clientY < r.top + 46) main.scrollTop -= 10
+        else if (ev.clientY > r.bottom - 46) main.scrollTop += 10
+      }
+    }
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      document.body.classList.remove('is-reordering')
+      const from = dragIdRef.current
+      const to = overIdRef.current
+      dragIdRef.current = null
+      overIdRef.current = null
+      setDragId(null)
+      setOverId(null)
+      if (active && from && to) applyReorder(from, to)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   async function togglePin(t: Task) {
@@ -272,9 +307,13 @@ export default function App() {
     say('已清除背景图')
   }
 
-  const today = useMemo(() => data.pending.filter((t) => t.daysHeld === 0), [data.pending])
+  const pinnedItems = useMemo(() => data.pending.filter((t) => t.pinned), [data.pending])
+  const today = useMemo(
+    () => data.pending.filter((t) => !t.pinned && t.daysHeld === 0),
+    [data.pending]
+  )
   const backlog = useMemo(
-    () => data.pending.filter((t) => t.daysHeld >= 1).sort((a, b) => a.createdAt - b.createdAt),
+    () => data.pending.filter((t) => !t.pinned && t.daysHeld >= 1),
     [data.pending]
   )
 
@@ -320,10 +359,7 @@ export default function App() {
               onRemove={removeTask}
               onPin={togglePin}
               onColor={markColor}
-              onDragStart={onDragStart}
-              onDragOver={onDragOver}
-              onDrop={onDrop}
-              onDragEnd={onDragEnd}
+              onPointerDown={beginDrag}
               dragging={dragId === t.id}
               dragOver={overId === t.id}
             />
@@ -344,10 +380,7 @@ export default function App() {
         onRemove={removeTask}
         onPin={togglePin}
         onColor={markColor}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        onDragEnd={onDragEnd}
+        onPointerDown={beginDrag}
         dragging={dragId === t.id}
         dragOver={overId === t.id}
       />
@@ -443,6 +476,16 @@ export default function App() {
 
           {loaded && tab === 'pending' && (
             <>
+              {pinnedItems.length > 0 && (
+                <section>
+                  <div className="section-head pinned-head">
+                    <span>置顶</span>
+                    <span className="count">{pinnedItems.length}</span>
+                  </div>
+                  {renderItems(pinnedItems, 'pending')}
+                </section>
+              )}
+
               {today.length > 0 && (
                 <section>
                   <div className="section-head">

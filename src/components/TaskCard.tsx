@@ -13,10 +13,7 @@ interface Props {
   onRemove: (task: Task) => void
   onPin: (task: Task) => void
   onColor: (task: Task, color: MarkColor) => void
-  onDragStart: (id: string) => void
-  onDragOver: (e: React.DragEvent, id: string) => void
-  onDrop: (e: React.DragEvent, id: string) => void
-  onDragEnd: () => void
+  onPointerDown: (e: React.PointerEvent, id: string) => void
   dragging: boolean
   dragOver: boolean
 }
@@ -32,10 +29,7 @@ export function TaskCard({
   onRemove,
   onPin,
   onColor,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
+  onPointerDown,
   dragging,
   dragOver
 }: Props) {
@@ -43,8 +37,8 @@ export function TaskCard({
   const [draft, setDraft] = useState(task.title)
   const [dueOpen, setDueOpen] = useState(false)
   const [colorOpen, setColorOpen] = useState(false)
+  const [popPos, setPopPos] = useState<{ x: number; y: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const downTarget = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (editing) inputRef.current?.select()
@@ -65,25 +59,10 @@ export function TaskCard({
       className={`card color-${task.color} ${variant === 'done' ? 'is-done' : ''} ${
         task.pinned ? 'is-pinned' : ''
       } ${dragging ? 'is-dragging' : ''} ${dragOver ? 'is-over' : ''}`}
-      draggable={canDrag}
-      onMouseDown={(e) => {
-        downTarget.current = e.target as HTMLElement
+      data-task-id={task.id}
+      onPointerDown={(e) => {
+        if (canDrag) onPointerDown(e, task.id)
       }}
-      onDragStart={(e) => {
-        if (!canDrag) return
-        // 从按钮 / 输入框上按下时不进入拖动，否则点击事件会被拖拽吃掉
-        // 只有操作类控件不触发拖动；缩略图区域仍可拖
-        if (downTarget.current?.closest('.actions, .pin-corner, .color-inline, input, textarea')) {
-          e.preventDefault()
-          return
-        }
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('text/plain', task.id)
-        onDragStart(task.id)
-      }}
-      onDragOver={(e) => onDragOver(e, task.id)}
-      onDrop={(e) => onDrop(e, task.id)}
-      onDragEnd={onDragEnd}
     >
       <button
         className={`pin-corner ${task.pinned ? 'on' : ''}`}
@@ -169,33 +148,6 @@ export function TaskCard({
           )}
         </div>
 
-        {colorOpen && (
-          <div className="color-inline">
-            {(['red', 'orange', 'green'] as MarkColor[]).map((c) => (
-              <button
-                key={c}
-                className={`ci-dot ${c} ${task.color === c ? 'on' : ''}`}
-                title={c === 'red' ? '红色' : c === 'orange' ? '橙色' : '绿色'}
-                onClick={() => {
-                  onColor(task, c)
-                  setColorOpen(false)
-                }}
-              />
-            ))}
-            {task.color !== 'none' && (
-              <button
-                className="ci-clear"
-                onClick={() => {
-                  onColor(task, 'none')
-                  setColorOpen(false)
-                }}
-              >
-                清除
-              </button>
-            )}
-          </div>
-        )}
-
         {dueOpen && (
           <div className="due-edit">
             <input
@@ -214,7 +166,14 @@ export function TaskCard({
         <button
           className={`icon-btn color-btn ${task.color !== 'none' ? 'on' : ''}`}
           title="颜色标记"
-          onClick={() => setColorOpen((v) => !v)}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            setPopPos({
+              x: Math.min(r.left - 40, window.innerWidth - 160),
+              y: Math.min(r.bottom + 6, window.innerHeight - 70)
+            })
+            setColorOpen((v) => !v)
+          }}
         >
           <span className={`color-dot ${task.color}`} />
         </button>
@@ -243,6 +202,35 @@ export function TaskCard({
       </div>
 
 
+      {colorOpen && popPos && (
+        <>
+          <div className="color-mask" onClick={() => setColorOpen(false)} />
+          <div className="color-float" style={{ left: popPos.x, top: popPos.y }}>
+            {(['red', 'orange', 'green'] as MarkColor[]).map((c) => (
+              <button
+                key={c}
+                className={`ci-dot ${c} ${task.color === c ? 'on' : ''}`}
+                title={c === 'red' ? '红色' : c === 'orange' ? '橙色' : '绿色'}
+                onClick={() => {
+                  onColor(task, c)
+                  setColorOpen(false)
+                }}
+              />
+            ))}
+            {task.color !== 'none' && (
+              <button
+                className="ci-clear"
+                onClick={() => {
+                  onColor(task, 'none')
+                  setColorOpen(false)
+                }}
+              >
+                清除
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

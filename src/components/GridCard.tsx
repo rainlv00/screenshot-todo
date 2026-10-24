@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import type { MarkColor, Task } from '../../shared/types'
 import { doneText, heldLabel, heldLevel } from '../lib/format'
 
@@ -11,10 +10,7 @@ interface Props {
   onRemove: (task: Task) => void
   onPin: (task: Task) => void
   onColor: (task: Task, color: MarkColor) => void
-  onDragStart: (id: string) => void
-  onDragOver: (e: React.DragEvent, id: string) => void
-  onDrop: (e: React.DragEvent, id: string) => void
-  onDragEnd: () => void
+  onPointerDown: (e: React.PointerEvent, id: string) => void
   dragging: boolean
   dragOver: boolean
 }
@@ -31,14 +27,10 @@ export function GridCard({
   onRemove,
   onPin,
   onColor,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
+  onPointerDown,
   dragging,
   dragOver
 }: Props) {
-  const downTarget = useRef<HTMLElement | null>(null)
   const level = heldLevel(task.daysHeld)
   const meta =
     variant === 'pending' ? heldLabel(task.daysHeld) : task.completedAt ? doneText(task.completedAt) : '已完成'
@@ -49,23 +41,10 @@ export function GridCard({
       className={`gcard color-${task.color} ${variant === 'done' ? 'is-done' : ''} ${
         task.pinned ? 'is-pinned' : ''
       } ${dragging ? 'is-dragging' : ''} ${dragOver ? 'is-over' : ''}`}
-      draggable={canDrag}
-      onMouseDown={(e) => {
-        downTarget.current = e.target as HTMLElement
+      data-task-id={task.id}
+      onPointerDown={(e) => {
+        if (canDrag) onPointerDown(e, task.id)
       }}
-      onDragStart={(e) => {
-        if (!canDrag) return
-        if (downTarget.current?.closest('.g-color, .g-pin, .g-del, .g-check')) {
-          e.preventDefault()
-          return
-        }
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('text/plain', task.id)
-        onDragStart(task.id)
-      }}
-      onDragOver={(e) => onDragOver(e, task.id)}
-      onDrop={(e) => onDrop(e, task.id)}
-      onDragEnd={onDragEnd}
     >
       <img
         className="g-thumb"
