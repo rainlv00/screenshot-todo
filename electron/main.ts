@@ -62,7 +62,7 @@ import {
   restoreOne,
   restoreAll,
   storageRoot,
-  listDesktopFiles
+  syncDeskFiles
 } from './files'
 
 const isDev = !app.isPackaged
@@ -1042,7 +1042,7 @@ function registerIpc(): void {
   ipcMain.handle('files:storageRoot', () => storageRoot())
   ipcMain.handle('files:openWindow', () => createDeskWindow())
   ipcMain.handle('desk:close', () => deskWin?.close())
-  ipcMain.handle('desk:files', () => listDesktopFiles())
+  ipcMain.handle('desk:files', () => syncDeskFiles())
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
   ipcMain.on('desk:interactive', (_e, on: boolean) => {

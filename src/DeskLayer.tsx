@@ -1,30 +1,54 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+interface Cat {
+  id: string
+  name: string
+  exts: string[]
+  color: string
+  builtin: boolean
+  count: number
+}
 
 interface DeskFile {
+  id: string
   name: string
   path: string
   ext: string
   size: number
   mtime: number
-  dir: boolean
+  categoryId: string | null
+  pinned: boolean
 }
 
-interface PanelDef {
-  id: string
-  title: string
-  exts: string[]
-  color: string
+const COLOR: Record<string, string> = {
+  blue: '#4a7dff',
+  green: '#30a46c',
+  orange: '#f5a524',
+  red: '#e5484d',
+  yellow: '#d4a017',
+  pink: '#d6409f',
+  none: '#7a8296'
 }
 
-const PANELS: PanelDef[] = [
-  { id: 'doc', title: '文档', exts: ['doc', 'docx', 'pdf', 'txt', 'md', 'rtf', 'wps'], color: '#4a7dff' },
-  { id: 'sheet', title: '表格', exts: ['xls', 'xlsx', 'csv', 'et'], color: '#30a46c' },
-  { id: 'slide', title: '演示', exts: ['ppt', 'pptx', 'dps'], color: '#f5a524' },
-  { id: 'video', title: '视频', exts: ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv'], color: '#d6409f' },
-  { id: 'image', title: '图片', exts: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'], color: '#8e6bff' },
-  { id: 'archive', title: '压缩包', exts: ['zip', 'rar', '7z', 'tar', 'gz'], color: '#d4a017' },
-  { id: 'app', title: '程序', exts: ['exe', 'msi', 'lnk', 'bat'], color: '#e5484d' }
-]
+const POS_KEY = 'desk-panel-pos'
+const STYLE_KEY = 'desk-panel-style'
+
+/** 预设色板，面板和分区共用 */
+const SWATCHES = ['blue', 'green', 'orange', 'red', 'yellow', 'pink', 'none']
+
+interface PanelStyle {
+  color?: string
+  width?: number
+  alpha?: number
+}
+
+function loadStyle(): Record<string, PanelStyle> {
+  try {
+    return JSON.parse(localStorage.getItem(STYLE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
 
 function fmtSize(n: number): string {
   if (n < 1024) return `${n}B`
@@ -33,23 +57,44 @@ function fmtSize(n: number): string {
   return `${(n / 1024 / 1024 / 1024).toFixed(1)}G`
 }
 
+type Pos = { x: number; y: number }
+
 export default function DeskLayer() {
+  const [cats, setCats] = useState<Cat[]>([])
   const [files, setFiles] = useState<DeskFile[]>([])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [pos, setPos] = useState<Record<string, Pos>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(POS_KEY) || '{}')
+    } catch {
+      return {}
+    }
+  })
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null)
+  const [style, setStyle] = useState<Record<string, PanelStyle>>(loadStyle)
+  const [menuCat, setMenuCat] = useState<string | null>(null)
+  const [newOpen, setNewOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newExts, setNewExts] = useState('')
+  const dragFileId = useRef<string | null>(null)
 
   const load = useCallback(async () => {
-    const f = (await window.api.desk.files()) as DeskFile[]
+    const [c, f] = await Promise.all([
+      window.api.files.categories() as Promise<Cat[]>,
+      window.api.desk.files() as Promise<DeskFile[]>
+    ])
+    setCats(c)
     setFiles(f)
   }, [])
 
   useEffect(() => {
     void load()
-    const t = setInterval(() => void load(), 5000)
+    const t = setInterval(() => void load(), 6000)
     return () => clearInterval(t)
   }, [load])
 
-  // 鼠标在面板上才接管，空白处穿透到桌面
+  // 鼠标在面板上才接管，空白处穿透
   useEffect(() => {
     let over = false
     const onMove = (e: MouseEvent) => {
@@ -67,60 +112,152 @@ export default function DeskLayer() {
     }
   }, [])
 
-  const groups = useMemo(() => {
-    const used = new Set<string>()
-    const out = PANELS.map((p) => {
-      const items = files.filter((f) => {
-        if (used.has(f.path)) return false
-        if (f.dir) return false
-        if (p.exts.includes(f.ext)) {
-          used.add(f.path)
-          return true
+  /** 拖动面板 */
+  function startDragPanel(e: React.PointerEvent, id: string) {
+    if ((e.target as HTMLElement).closest('button')) return
+    const startX = e.clientX
+    const startY = e.clientY
+    const origin = pos[id] ?? { x: 24, y: 24 }
+    const baseX = origin.x
+    const baseY = origin.y
+    let moved = false
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX
+      const dy = ev.clientY - startY
+      if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return
+      moved = true
+      setPos((cur) => ({
+        ...cur,
+        [id]: {
+          x: Math.max(0, Math.min(window.innerWidth - 240, baseX + dx)),
+          y: Math.max(0, Math.min(window.innerHeight - 80, baseY + dy))
         }
-        return false
-      })
-      return { panel: p, items }
-    })
-    // 剩下的归到「其他」
-    const rest = files.filter((f) => !used.has(f.path))
-    if (rest.length) {
-      out.push({ panel: { id: 'other', title: '其他', exts: [], color: '#7a8296' }, items: rest })
+      }))
     }
-    return out.filter((g) => g.items.length > 0)
-  }, [files])
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      if (moved) {
+        setPos((cur) => {
+          try {
+            localStorage.setItem(POS_KEY, JSON.stringify(cur))
+          } catch {
+            /* 存储失败不影响使用 */
+          }
+          return cur
+        })
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  /** 把文件拖到另一个分区 */
+  async function dropToCategory(catId: string) {
+    const id = dragFileId.current
+    dragFileId.current = null
+    setDragOverCat(null)
+    if (!id) return
+    await window.api.files.setCategory(id, catId)
+    await load()
+  }
+
+  async function createCategory() {
+    const name = newName.trim()
+    if (!name) return
+    const list = newExts
+      .split(/[,，\s]+/)
+      .map((x) => x.trim().replace(/^\./, '').toLowerCase())
+      .filter(Boolean)
+    await window.api.files.addCategory(name, list)
+    setNewOpen(false)
+    setNewName('')
+    setNewExts('')
+    await load()
+  }
+
+  function patchStyle(id: string, patch: PanelStyle) {
+    setStyle((cur) => {
+      const next = { ...cur, [id]: { ...cur[id], ...patch } }
+      try {
+        localStorage.setItem(STYLE_KEY, JSON.stringify(next))
+      } catch {
+        /* 忽略 */
+      }
+      return next
+    })
+  }
+
+  const visible = useMemo(
+    () =>
+      cats
+        .map((c) => ({ cat: c, items: files.filter((f) => f.categoryId === c.id) }))
+        .filter((g) => g.items.length > 0),
+    [cats, files]
+  )
 
   return (
     <div className="desk">
-      {groups.map(({ panel, items }, idx) => {
-        const isCollapsed = collapsed.has(panel.id)
-        const col = idx % 4
-        const row = Math.floor(idx / 4)
+      {visible.map(({ cat, items }, idx) => {
+        const st = style[cat.id] ?? {}
+        const colorKey = st.color ?? cat.color
+        const color = COLOR[colorKey] ?? COLOR.none
+        const width = st.width ?? 226
+        const alpha = st.alpha ?? 0.72
+        const isCollapsed = collapsed.has(cat.id)
+        const p = pos[cat.id] ?? { x: 24 + (idx % 4) * (width + 22), y: 24 + Math.floor(idx / 4) * 300 }
         return (
           <section
-            key={panel.id}
-            data-panel={panel.id}
-            className={`desk-panel ${isCollapsed ? 'is-collapsed' : ''}`}
-            style={{ left: 24 + col * 248, top: 24 + row * 300 }}
+            key={cat.id}
+            data-panel={cat.id}
+            className={`desk-panel ${isCollapsed ? 'is-collapsed' : ''} ${
+              dragOverCat === cat.id ? 'is-over' : ''
+            }`}
+            style={{
+              left: p.x,
+              top: p.y,
+              width,
+              background: `rgba(28, 32, 42, ${alpha})`,
+              borderColor: colorKey === 'none' ? undefined : `${color}55`
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragOverCat(cat.id)
+            }}
+            onDragLeave={() => setDragOverCat((v) => (v === cat.id ? null : v))}
+            onDrop={(e) => {
+              e.preventDefault()
+              void dropToCategory(cat.id)
+            }}
           >
-            <header className="dp-head">
+            <header
+              className="dp-head"
+              onPointerDown={(e) => startDragPanel(e, cat.id)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setMenuCat(cat.id)
+              }}
+              title="按住拖动整个面板，右键改样式"
+            >
               <button
                 className="dp-fold"
                 onClick={() => {
                   const n = new Set(collapsed)
-                  if (n.has(panel.id)) n.delete(panel.id)
-                  else n.add(panel.id)
+                  if (n.has(cat.id)) n.delete(cat.id)
+                  else n.add(cat.id)
                   setCollapsed(n)
                 }}
                 title={isCollapsed ? '展开' : '收起'}
               >
                 {isCollapsed ? '▾' : '▴'}
               </button>
-              <span className="dp-icon" style={{ color: panel.color }}>
+              <span className="dp-icon" style={{ color }}>
                 ▣
               </span>
-              <span className="dp-title">{panel.title}</span>
+              <span className="dp-title">{cat.name}</span>
               <span className="dp-count">{items.length}</span>
-              <button className="dp-act" title="更多">
+              <button className="dp-act" title="分区设置" onClick={() => setMenuCat(menuCat === cat.id ? null : cat.id)}>
                 ⋯
               </button>
             </header>
@@ -130,12 +267,18 @@ export default function DeskLayer() {
                 <div className={`dp-body ${view === 'list' ? 'is-list' : ''}`}>
                   {items.map((f) => (
                     <button
-                      key={f.path}
+                      key={f.id}
                       className="dp-item"
-                      title={`${f.name}\n${fmtSize(f.size)}`}
+                      draggable
+                      onDragStart={(e) => {
+                        dragFileId.current = f.id
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', f.id)
+                      }}
+                      title={`${f.name}\n${fmtSize(f.size)}\n双击打开，可拖到其它分区`}
                       onDoubleClick={() => void window.api.desk.open(f.path)}
                     >
-                      <span className="dp-ext" style={{ background: `${panel.color}26`, color: panel.color }}>
+                      <span className="dp-ext" style={{ background: `${color}26`, color }}>
                         {(f.ext || '?').slice(0, 4).toUpperCase()}
                       </span>
                       <span className="dp-name">{f.name}</span>
@@ -145,7 +288,7 @@ export default function DeskLayer() {
                 </div>
 
                 <footer className="dp-foot">
-                  <span className="dp-hint">桌面 · {panel.title}</span>
+                  <span className="dp-hint">桌面 · {cat.name}</span>
                   <button
                     className="dp-view"
                     onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
@@ -159,6 +302,106 @@ export default function DeskLayer() {
           </section>
         )
       })}
+
+      <button
+        className="desk-add"
+        style={{
+          left: 24 + (visible.length % 4) * 248,
+          top: 24 + Math.floor(visible.length / 4) * 300
+        }}
+        onClick={() => setNewOpen(true)}
+        title="新建分区"
+      >
+        + 新建分区
+      </button>
+
+      {menuCat && (
+        <div className="desk-modal-mask" onClick={() => setMenuCat(null)}>
+          <div className="desk-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="dm-title">分区样式</div>
+            <label className="dm-label">颜色</label>
+            <div className="dm-swatches">
+              {SWATCHES.map((c) => (
+                <button
+                  key={c}
+                  className={`dm-sw ${(style[menuCat]?.color ?? cats.find((x) => x.id === menuCat)?.color) === c ? 'on' : ''}`}
+                  style={{ background: COLOR[c] }}
+                  title={c}
+                  onClick={() => patchStyle(menuCat, { color: c })}
+                />
+              ))}
+            </div>
+            <label className="dm-label">宽度</label>
+            <div className="dm-seg">
+              {[
+                [200, '窄'],
+                [226, '标准'],
+                [280, '宽']
+              ].map(([w, label]) => (
+                <button
+                  key={w}
+                  className={(style[menuCat]?.width ?? 226) === w ? 'on' : ''}
+                  onClick={() => patchStyle(menuCat, { width: w as number })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="dm-label">背景不透明度</label>
+            <input
+              type="range"
+              min={20}
+              max={100}
+              value={Math.round((style[menuCat]?.alpha ?? 0.72) * 100)}
+              onChange={(e) => patchStyle(menuCat, { alpha: Number(e.target.value) / 100 })}
+              className="dm-range"
+            />
+            <div className="dm-actions">
+              <button className="dm-btn" onClick={() => setMenuCat(null)}>
+                完成
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {newOpen && (
+        <div className="desk-modal-mask" onClick={() => setNewOpen(false)}>
+          <div className="desk-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="dm-title">新建分区</div>
+            <label className="dm-label">分区名字</label>
+            <input
+              autoFocus
+              className="dm-input"
+              value={newName}
+              placeholder="比如：合同、报价单、设计稿"
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void createCategory()
+                if (e.key === 'Escape') setNewOpen(false)
+              }}
+            />
+            <label className="dm-label">自动归类的扩展名（可留空）</label>
+            <input
+              className="dm-input"
+              value={newExts}
+              placeholder="如 docx,pdf  留空则只手动拖入"
+              onChange={(e) => setNewExts(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void createCategory()
+              }}
+            />
+            <div className="dm-actions">
+              <button className="dm-btn" onClick={() => setNewOpen(false)}>
+                取消
+              </button>
+              <button className="dm-btn primary" onClick={createCategory} disabled={!newName.trim()}>
+                创建
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

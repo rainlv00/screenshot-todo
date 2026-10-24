@@ -457,8 +457,51 @@ export interface DeskFile {
   dir: boolean
 }
 
+/** 扫描桌面并同步到库，state='desk' 表示"只是桌面分区展示"，文件没被移动 */
+export function syncDeskFiles(): FileItem[] {
+  const db = getDb()
+  const raw = scanDesktopRaw()
+  const alive = new Set(raw.map((f) => f.path))
+
+  for (const f of raw) {
+    const row = db.prepare('SELECT id FROM files WHERE path = ?').get(f.path) as { id: string } | undefined
+    if (row) {
+      db.prepare('UPDATE files SET size = ?, mtime = ?, missing = 0, last_seen = ? WHERE id = ?').run(
+        f.size,
+        f.mtime,
+        now(),
+        row.id
+      )
+    } else {
+      const cat = matchCategory(f.ext)
+      db.prepare(
+        "INSERT INTO files(id, path, orig_path, state, name, ext, size, mtime, category_id, added_at, moved_at, last_seen) VALUES(?,?,'','desk',?,?,?,?,?,?,0,?)"
+      ).run(`f_${randomUUID().slice(0, 8)}`, f.path, f.name, f.ext, f.size, f.mtime, cat, now(), now())
+    }
+  }
+
+  // 桌面上消失的标记出来，不删记录（防止用户临时挪走又放回）
+  const rows = db.prepare("SELECT id, path FROM files WHERE state = 'desk'").all() as {
+    id: string
+    path: string
+  }[]
+  for (const r of rows) {
+    db.prepare('UPDATE files SET missing = ? WHERE id = ?').run(alive.has(r.path) ? 0 : 1, r.id)
+  }
+
+  return listDeskFiles()
+}
+
+export function listDeskFiles(): FileItem[] {
+  const db = getDb()
+  const rows = db
+    .prepare("SELECT * FROM files WHERE state = 'desk' AND missing = 0 ORDER BY pinned DESC, added_at DESC")
+    .all() as any[]
+  return rows.map(rowToFile)
+}
+
 /** 读桌面上的文件/文件夹，按修改时间倒序。只读，绝不移动 */
-export function listDesktopFiles(): DeskFile[] {
+function scanDesktopRaw(): DeskFile[] {
   const out: DeskFile[] = []
   const seen = new Set<string>()
   for (const dir of getWatchDirs()) {

@@ -104,8 +104,8 @@ export default function App() {
 
   useEffect(() => window.api.onChanged(refresh), [refresh])
 
-  // 文件柜窗口被直接关掉时，开关也要弹回去
-  useEffect(() => window.api.files.onWindowClosed(() => setCabinetOpen(false)), [])
+  // 桌面分区层被关掉时，开关也要弹回去
+  useEffect(() => window.api.desk.onClosed(() => setCabinetOpen(false)), [])
   useEffect(() => window.api.onOpenSettings(() => setSettingsOpen(true)), [])
   useEffect(() => window.api.onPrefsChanged(applyPrefs), [applyPrefs])
 
@@ -430,35 +430,6 @@ export default function App() {
         )}
 
         <nav className="tabs">
-          <div className="view-switch" role="tablist" title="打开或关闭文件柜">
-            <span className={`vs-knob ${cabinetOpen ? 'right' : ''}`} />
-            <button
-              className={!cabinetOpen ? 'on' : ''}
-              onClick={async () => {
-                if (!cabinetOpen) {
-                  await window.api.files.openWindow()
-                  setCabinetOpen(true)
-                } else {
-                  const r = await window.api.files.closeAndRestore()
-                  if (!r.cancelled) setCabinetOpen(false)
-                }
-              }}
-            >
-              待办
-            </button>
-            <button
-              className={cabinetOpen ? 'on' : ''}
-              onClick={async () => {
-                if (!cabinetOpen) {
-                  await window.api.files.openWindow()
-                  setCabinetOpen(true)
-                }
-              }}
-            >
-              文件
-            </button>
-          </div>
-
           <button className={`tab ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}>
             待办
             <span className={`badge ${data.pendingCount > 0 ? 'hot' : ''}`}>{data.pendingCount}</span>
@@ -594,6 +565,27 @@ export default function App() {
               <span className="rec-knob" />
             </span>
             <span className="rec-label">{capturing ? '收录中' : '已停止'}</span>
+          </button>
+
+          <button
+            className={`rec desk-sw ${cabinetOpen ? 'on' : 'off'}`}
+            onClick={async () => {
+              if (!cabinetOpen) {
+                await window.api.files.openWindow()
+                setCabinetOpen(true)
+              } else {
+                await window.api.desk.close()
+                setCabinetOpen(false)
+              }
+            }}
+            role="switch"
+            aria-checked={cabinetOpen}
+            title={cabinetOpen ? '点一下关闭桌面分区' : '点一下在桌面显示分区'}
+          >
+            <span className="rec-track">
+              <span className="rec-knob" />
+            </span>
+            <span className="rec-label">分区</span>
           </button>
 
           <button className="kbd-chip" onClick={toggleCapture} title="快捷键，按一下也能切换">
