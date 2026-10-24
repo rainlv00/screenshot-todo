@@ -48,6 +48,8 @@ export default function App() {
   const [calOpen, setCalOpen] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  // 拖拽过程中 dragId 要用 ref 同步拿，state 是异步的，首帧 dragover 会拿不到
+  const dragIdRef = useRef<string | null>(null)
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [bgVer, setBgVer] = useState(1)
   const [loaded, setLoaded] = useState(false)
@@ -198,11 +200,12 @@ export default function App() {
   }
 
   function onDragStart(id: string) {
+    dragIdRef.current = id
     setDragId(id)
   }
 
   function onDragOver(e: React.DragEvent, id: string) {
-    if (!dragId) return
+    if (!dragIdRef.current) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     if (id !== overId) setOverId(id)
@@ -210,7 +213,8 @@ export default function App() {
 
   function onDrop(e: React.DragEvent, id: string) {
     e.preventDefault()
-    const from = dragId
+    const from = dragIdRef.current
+    dragIdRef.current = null
     setDragId(null)
     setOverId(null)
     if (!from || from === id) return
@@ -232,6 +236,7 @@ export default function App() {
   }
 
   function onDragEnd() {
+    dragIdRef.current = null
     setDragId(null)
     setOverId(null)
   }

@@ -55,7 +55,7 @@ export function GridCard({
       }}
       onDragStart={(e) => {
         if (!canDrag) return
-        if (downTarget.current?.closest('button, input, textarea')) {
+        if (downTarget.current?.closest('.g-color, .g-pin, .g-del, .g-check')) {
           e.preventDefault()
           return
         }

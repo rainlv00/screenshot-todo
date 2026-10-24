@@ -2251,3 +2251,113 @@ html.toast-mode #root {
 .cal-legend i.t {
   background: #9aa0b0;
 }
+
+/* 内联颜色选择（不浮动，避免被裁切） */
+.color-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(20, 24, 40, 0.05);
+  width: fit-content;
+}
+
+.ci-dot {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.ci-dot:hover {
+  transform: scale(1.12);
+}
+
+.ci-dot.red {
+  background: #e5484d;
+}
+.ci-dot.orange {
+  background: #f5a524;
+}
+.ci-dot.green {
+  background: #30a46c;
+}
+
+.ci-dot.on {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px currentColor;
+}
+
+.ci-dot.red.on {
+  color: #e5484d;
+}
+.ci-dot.orange.on {
+  color: #f5a524;
+}
+.ci-dot.green.on {
+  color: #30a46c;
+}
+
+.ci-clear {
+  border: none;
+  background: transparent;
+  color: #8b90a0;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 2px;
+  font-family: inherit;
+}
+
+.ci-clear:hover {
+  color: #e5484d;
+}
+
+/* 颜色标记加强：色条更粗、底色更明显、加内描边 */
+.card.color-red {
+  background-image: linear-gradient(rgba(229, 72, 77, 0.13), rgba(229, 72, 77, 0.13));
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.35), 0 1px 4px rgba(20, 24, 40, 0.05);
+}
+.card.color-orange {
+  background-image: linear-gradient(rgba(245, 165, 36, 0.15), rgba(245, 165, 36, 0.15));
+  box-shadow: inset 0 0 0 1px rgba(245, 165, 36, 0.42), 0 1px 4px rgba(20, 24, 40, 0.05);
+}
+.card.color-green {
+  background-image: linear-gradient(rgba(48, 164, 108, 0.14), rgba(48, 164, 108, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(48, 164, 108, 0.38), 0 1px 4px rgba(20, 24, 40, 0.05);
+}
+
+.card.color-red::before,
+.card.color-orange::before,
+.card.color-green::before {
+  width: 5px;
+  top: 0;
+  bottom: 0;
+  border-radius: 0;
+}
+
+/* 日历靠右下角弹出，不再居中全屏 */
+.modal-mask.cal-mask {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 14px 96px 0;
+}
+
+/* 日历文字别用 transform 缩放，会发虚 */
+.cal-fest {
+  transform: none;
+  font-size: 10px;
+  letter-spacing: -0.2px;
+}
+
+.cal-cell {
+  font-size: 12.5px;
+}
+
+.cal-day {
+  font-weight: 500;
+}

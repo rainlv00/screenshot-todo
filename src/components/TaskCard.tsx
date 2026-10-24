@@ -21,13 +21,6 @@ interface Props {
   dragOver: boolean
 }
 
-const COLORS: { key: MarkColor; label: string }[] = [
-  { key: 'red', label: '重要且紧急' },
-  { key: 'orange', label: '重要不紧急' },
-  { key: 'green', label: '不重要不紧急' },
-  { key: 'none', label: '清除标记' }
-]
-
 export function TaskCard({
   task,
   variant,
@@ -79,7 +72,8 @@ export function TaskCard({
       onDragStart={(e) => {
         if (!canDrag) return
         // 从按钮 / 输入框上按下时不进入拖动，否则点击事件会被拖拽吃掉
-        if (downTarget.current?.closest('button, input, textarea')) {
+        // 只有操作类控件不触发拖动；缩略图区域仍可拖
+        if (downTarget.current?.closest('.actions, .pin-corner, .color-inline, input, textarea')) {
           e.preventDefault()
           return
         }
@@ -175,6 +169,33 @@ export function TaskCard({
           )}
         </div>
 
+        {colorOpen && (
+          <div className="color-inline">
+            {(['red', 'orange', 'green'] as MarkColor[]).map((c) => (
+              <button
+                key={c}
+                className={`ci-dot ${c} ${task.color === c ? 'on' : ''}`}
+                title={c === 'red' ? '红色' : c === 'orange' ? '橙色' : '绿色'}
+                onClick={() => {
+                  onColor(task, c)
+                  setColorOpen(false)
+                }}
+              />
+            ))}
+            {task.color !== 'none' && (
+              <button
+                className="ci-clear"
+                onClick={() => {
+                  onColor(task, 'none')
+                  setColorOpen(false)
+                }}
+              >
+                清除
+              </button>
+            )}
+          </div>
+        )}
+
         {dueOpen && (
           <div className="due-edit">
             <input
@@ -221,27 +242,7 @@ export function TaskCard({
         </button>
       </div>
 
-      {colorOpen && (
-        <>
-          <div className="pop-mask" onClick={() => setColorOpen(false)} />
-          <div className="color-pop">
-            {COLORS.map((c) => (
-              <button
-                key={c.key}
-                className={`color-choice ${c.key} ${task.color === c.key ? 'on' : ''}`}
-                title={c.label}
-                onClick={() => {
-                  onColor(task, c.key)
-                  setColorOpen(false)
-                }}
-              >
-                <span className={`color-dot ${c.key}`} />
-                <span className="color-label">{c.label}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+
     </div>
   )
 }

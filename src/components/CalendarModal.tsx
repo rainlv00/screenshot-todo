@@ -56,7 +56,7 @@ export function CalendarModal({ onClose }: Props) {
   const todayKey = ymd(today)
 
   return (
-    <div className="modal-mask" onClick={onClose}>
+    <div className="modal-mask cal-mask" onClick={onClose}>
       <div className="calendar" onClick={(e) => e.stopPropagation()}>
         <div className="cal-head-row">
           <button className="cal-nav" onClick={() => setCursor(new Date(year, month - 1, 1))} aria-label="上个月">
