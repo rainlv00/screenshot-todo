@@ -57,6 +57,15 @@ export interface Prefs {
   textTone: 'auto' | 'dark' | 'light'
 }
 
+export interface UpdateInfo {
+  version: string
+  current: string
+  notes: string
+  url: string
+  size: number
+  publishedAt: string
+}
+
 export interface BgPickResult {
   file: string
   width: number

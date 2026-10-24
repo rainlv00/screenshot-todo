@@ -37,6 +37,7 @@ import {
 import { saveImage, deleteImageFiles, sha1 } from './store'
 import { startDailyReminder, type ReminderCtl } from './reminder'
 import type { Prefs, ToastPayload } from '../shared/types'
+import { checkForUpdate, downloadUpdate, installUpdate, openReleasePage } from './updater'
 
 const isDev = !app.isPackaged
 const APP_ROOT = app.getAppPath()
@@ -867,6 +868,13 @@ function registerIpc(): void {
     updateTray()
     return next
   })
+
+  ipcMain.handle('app:checkUpdate', () => checkForUpdate())
+  ipcMain.handle('app:downloadUpdate', async (_e, info) =>
+    downloadUpdate(info, (s) => mainWin?.webContents.send('update:progress', s))
+  )
+  ipcMain.handle('app:installUpdate', () => installUpdate())
+  ipcMain.handle('app:openReleasePage', () => openReleasePage())
 
   ipcMain.handle('app:hotkeyAvailable', (_e, acc: string) => {
     if (!acc || !isValidAccel(acc)) return { ok: false, reason: 'invalid' as const }

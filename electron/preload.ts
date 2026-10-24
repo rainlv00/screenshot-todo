@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BgPickResult, ListResult, Prefs, ToastPayload } from '../shared/types'
+import type { BgPickResult, ListResult, Prefs, ToastPayload, UpdateInfo } from '../shared/types'
 
 function imgUrl(relPath: string): string {
   if (!relPath) return ''
@@ -18,6 +18,20 @@ const api = {
   pause: (minutes: number): Promise<Prefs> => ipcRenderer.invoke('app:pause', minutes),
   hotkeyAvailable: (acc: string): Promise<{ ok: boolean; reason?: 'invalid' | 'taken' | 'error' }> =>
     ipcRenderer.invoke('app:hotkeyAvailable', acc),
+
+  // ---- 更新 ----
+  checkUpdate: (): Promise<UpdateInfo | null> => ipcRenderer.invoke('app:checkUpdate'),
+  downloadUpdate: (info: UpdateInfo): Promise<{ status: string; percent: number; error?: string }> =>
+    ipcRenderer.invoke('app:downloadUpdate', info),
+  installUpdate: (): Promise<boolean> => ipcRenderer.invoke('app:installUpdate'),
+  openReleasePage: (): Promise<void> => ipcRenderer.invoke('app:openReleasePage'),
+  onUpdateProgress: (cb: (s: { status: string; percent: number; error?: string }) => void): (() => void) => {
+    const h = (_e: unknown, s: { status: string; percent: number; error?: string }) => cb(s)
+    ipcRenderer.on('update:progress', h)
+    return () => {
+      ipcRenderer.removeListener('update:progress', h)
+    }
+  },
   pickBackground: (): Promise<Prefs> => ipcRenderer.invoke('app:pickBackground'),
   pickBackgroundRaw: (): Promise<BgPickResult | null> => ipcRenderer.invoke('app:pickBackgroundRaw'),
   cropBackground: (rect: { x: number; y: number; width: number; height: number }): Promise<Prefs> =>

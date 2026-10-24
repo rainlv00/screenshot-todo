@@ -6,6 +6,7 @@ import { Preview } from './components/Preview'
 import { SettingsModal } from './components/SettingsModal'
 import { TopBar } from './components/TopBar'
 import { HelpModal } from './components/HelpModal'
+import { UpdateButton } from './components/UpdateButton'
 import { BgCropper } from './components/BgCropper'
 import { dateText, dayKey } from './lib/format'
 import { prettyAccel } from './components/HotkeyField'
@@ -318,6 +319,7 @@ export default function App() {
             <span className="badge">{data.done.length}</span>
           </button>
           <div className="tabs-right">
+            <UpdateButton />
             <button
               className="tb-btn"
               title={prefs.view === 'list' ? '切换成宫格' : '切换成列表'}
