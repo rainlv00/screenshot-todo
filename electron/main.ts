@@ -964,6 +964,11 @@ function registerHotkeys(): void {
     if (deskWin && !deskWin.isDestroyed()) deskWin.close()
     else createDeskWindow()
   }
+  // 分区2 同理，两个模式互斥
+  const onDesk2 = () => {
+    if (moveWin && !moveWin.isDestroyed()) moveWin.close()
+    else createMoveWindow()
+  }
 
   /** 注册一个绑定；仅当它是出厂默认值且被占用时，才自动换成可用的候选 */
   function bind(acc: string, fn: () => void, isDefault: boolean): string {

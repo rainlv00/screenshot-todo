@@ -35,7 +35,8 @@ const DEFAULT_PREFS: Prefs = {
   textTone: 'auto',
   hotkeyCapture: 'Ctrl+Alt+V',
   hotkeyPause: 'Ctrl+Alt+J',
-  hotkeyDesk: 'Alt+D'
+  hotkeyDesk: 'Alt+D',
+  hotkeyDesk2: 'Alt+S'
 }
 
 const DARK_COLORS = new Set(['gray', 'black', 'blue', 'green'])
@@ -640,9 +641,22 @@ export default function App() {
               </span>
               <span className="rec-label">分区2</span>
             </button>
-            <span className="kbd-chip" style={{ opacity: 0.45 }}>
-              手动
-            </span>
+            <button
+              className="kbd-chip"
+              onClick={async () => {
+                if (moveOpen) {
+                  await window.api.moveDesk.close()
+                  setMoveOpen(false)
+                } else {
+                  await window.api.moveDesk.open()
+                  setMoveOpen(true)
+                  setCabinetOpen(false)
+                }
+              }}
+              title="快捷键，按一下也能切换分区2"
+            >
+              {prettyAccel(prefs.hotkeyDesk2 || 'Alt+S').join(' + ')}
+            </button>
           </div>
 
           <button className="btn paste-btn" onClick={pasteNow}>

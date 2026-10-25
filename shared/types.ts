@@ -64,6 +64,8 @@ export interface Prefs {
   hotkeyPause: string
   /** 打开/关闭桌面分区的快捷键 */
   hotkeyDesk: string
+  /** 打开/关闭分区2（搬运模式）的快捷键 */
+  hotkeyDesk2: string
   /** 列表 / 宫格 */
   view: ViewMode
   /** 字号档位 */

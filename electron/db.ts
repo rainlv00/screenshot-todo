@@ -183,7 +183,8 @@ export function getPrefs(): Prefs {
     })(),
     hotkeyCapture: getSetting('hotkey_capture', 'Ctrl+Alt+V'),
     hotkeyPause: getSetting('hotkey_pause', 'Ctrl+Alt+J'),
-    hotkeyDesk: getSetting('hotkey_desk', 'Alt+D')
+    hotkeyDesk: getSetting('hotkey_desk', 'Alt+D'),
+    hotkeyDesk2: getSetting('hotkey_desk2', 'Alt+S')
   }
 }
 
@@ -209,6 +210,7 @@ export function setPrefs(p: Partial<Prefs>): Prefs {
   if (p.hotkeyCapture !== undefined) setSetting('hotkey_capture', p.hotkeyCapture)
   if (p.hotkeyPause !== undefined) setSetting('hotkey_pause', p.hotkeyPause)
   if (p.hotkeyDesk !== undefined) setSetting('hotkey_desk', p.hotkeyDesk)
+  if (p.hotkeyDesk2 !== undefined) setSetting('hotkey_desk2', p.hotkeyDesk2)
   return getPrefs()
 }
 
