@@ -65,7 +65,10 @@ import {
   restoreAll,
   storageRoot,
   syncDeskFiles,
-  listDeskFiles
+  listDeskFiles,
+  archiveDesktop,
+  listArchived,
+  archivePendingCount
 } from './files'
 import { getIconsHidden, setIconsHidden } from './deskIcons'
 
@@ -404,6 +407,68 @@ function createPreviewWindow(imagePath: string, title: string): void {
   previewWin.on('move', saveBounds)
   previewWin.on('closed', () => {
     previewWin = null
+  })
+}
+
+let moveWin: BrowserWindow | null = null
+
+/** 分区2：搬运模式。和分区1 互斥，开这个先把分区1 关掉 */
+function createMoveWindow(): void {
+  if (moveWin && !moveWin.isDestroyed()) {
+    moveWin.show()
+    moveWin.focus()
+    return
+  }
+  // 两个透明层同时铺着会抢鼠标，必须互斥
+  if (deskWin && !deskWin.isDestroyed()) deskWin.close()
+
+  const b = screen.getPrimaryDisplay().bounds
+  moveWin = new BrowserWindow({
+    x: b.x,
+    y: b.y,
+    width: b.width,
+    height: b.height,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false
+    }
+  })
+
+  loadRenderer(moveWin, 'movedesk=1')
+  moveWin.setIgnoreMouseEvents(true, { forward: true })
+  moveWin.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'Escape') moveWin?.close()
+  })
+
+  moveWin.once('ready-to-show', () => {
+    moveWin!.setOpacity(0)
+    moveWin!.showInactive()
+    mainWin?.moveTop()
+    setTimeout(() => {
+      try {
+        moveWin?.setOpacity(1)
+      } catch {
+        /* 窗口可能已关闭 */
+      }
+    }, 90)
+  })
+
+  moveWin.on('closed', () => {
+    moveWin = null
+    mainWin?.webContents.send('movedesk:closed')
   })
 }
 
@@ -1193,6 +1258,33 @@ function registerIpc(): void {
     return { added: res.added.length, total: res.files.length, detail: res.added }
   })
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
+
+  /* ---- 分区2：搬运模式 ---- */
+  ipcMain.handle('movedesk:open', () => createMoveWindow())
+  ipcMain.handle('movedesk:close', () => moveWin?.close())
+  ipcMain.handle('movedesk:files', () => listArchived())
+  ipcMain.handle('movedesk:pending', () => archivePendingCount())
+  ipcMain.handle('movedesk:archive', () => archiveDesktop())
+  ipcMain.handle('movedesk:restore', (_e, id: string) => restoreOne(id))
+  ipcMain.handle('movedesk:restoreAll', () => restoreAll())
+  ipcMain.handle('movedesk:restoreAllAndClose', async () => {
+    const pending = archivePendingCount()
+    if (pending > 0) {
+      const r = await dialog.showMessageBox({
+        type: 'question',
+        buttons: ['全部放回并退出', '取消'],
+        defaultId: 0,
+        cancelId: 1,
+        title: '退出分区2',
+        message: `还有 ${pending} 个文件被搬到了收纳目录`,
+        detail: '退出会把它们全部放回桌面原来的位置。文件不会丢失。'
+      })
+      if (r.response !== 0) return { restored: 0, failed: 0, cancelled: true }
+    }
+    const res = restoreAll()
+    moveWin?.close()
+    return { ...res, cancelled: false }
+  })
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
   ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))

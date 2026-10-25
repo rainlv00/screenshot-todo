@@ -88,6 +88,27 @@ const api = {
     }
   },
 
+  // ---- 分区2：搬运模式 ----
+  moveDesk: {
+    open: (): Promise<void> => ipcRenderer.invoke('movedesk:open'),
+    close: (): Promise<void> => ipcRenderer.invoke('movedesk:close'),
+    files: (): Promise<any[]> => ipcRenderer.invoke('movedesk:files'),
+    pending: (): Promise<number> => ipcRenderer.invoke('movedesk:pending'),
+    archive: (): Promise<{ moved: { name: string; category: string }[]; failed: string[]; scanned: number }> =>
+      ipcRenderer.invoke('movedesk:archive'),
+    restore: (id: string): Promise<boolean> => ipcRenderer.invoke('movedesk:restore', id),
+    restoreAllAndClose: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
+      ipcRenderer.invoke('movedesk:restoreAllAndClose'),
+    setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
+    onClosed: (cb: () => void): (() => void) => {
+      const h = () => cb()
+      ipcRenderer.on('movedesk:closed', h)
+      return () => {
+        ipcRenderer.removeListener('movedesk:closed', h)
+      }
+    }
+  },
+
   // ---- 图片预览 ----
   preview: {
     open: (img: string, title: string): Promise<void> => ipcRenderer.invoke('preview:open', img, title),

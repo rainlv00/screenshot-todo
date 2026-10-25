@@ -559,3 +559,55 @@ function scanDesktopRaw(): DeskFile[] {
   }
   return out.sort((a, b) => b.mtime - a.mtime)
 }
+
+/* ------------------------------------------------------------------ */
+/* 分区2：搬运模式（把桌面文件真实移入收纳目录，可原样还原）            */
+/* 与分区1 完全独立：分区1 只看不代表，分区2 才动文件                   */
+/* ------------------------------------------------------------------ */
+
+export interface ArchiveResult {
+  /** 本次真正搬走的文件和它的归属分区 */
+  moved: { name: string; category: string }[]
+  /** 搬失败的文件名 */
+  failed: string[]
+  /** 桌面上扫到多少个文件 */
+  scanned: number
+}
+
+/** 把桌面上的文件全部搬进收纳目录，并按扩展名分好类 */
+export function archiveDesktop(): ArchiveResult {
+  const raw = scanDesktopRaw()
+  const db = getDb()
+  const catName = new Map<string, string>()
+  for (const c of db.prepare('SELECT id, name FROM file_categories').all() as any[]) {
+    catName.set(c.id, c.name)
+  }
+
+  const moved: { name: string; category: string }[] = []
+  const failed: string[] = []
+
+  for (const f of raw) {
+    const item = addFileByPath(f.path)
+    if (item) {
+      moved.push({
+        name: item.name,
+        category: catName.get(item.categoryId ?? '') ?? '其他'
+      })
+    } else {
+      failed.push(f.name)
+    }
+  }
+
+  return { moved, failed, scanned: raw.length }
+}
+
+/** 分区2 当前收着的文件（state='inbox'） */
+export function listArchived(): FileItem[] {
+  return listFiles(null)
+}
+
+/** 分区2 还有多少个文件没还原 */
+export function archivePendingCount(): number {
+  const r = getDb().prepare("SELECT COUNT(*) AS n FROM files WHERE state = 'inbox'").get() as { n: number }
+  return r.n
+}

@@ -4362,3 +4362,108 @@ html.preview-mode #root {
   font-size: 10.5px;
   color: #6b7285;
 }
+
+/* 分区2 开关：橙色区分 */
+.rec.move-sw.on .rec-track {
+  background: #f5a524;
+}
+
+/* 分区2 工具条 */
+.mv-bar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(28, 32, 42, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
+
+.mv-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8ecf6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mv-sub {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.mv-acts {
+  display: flex;
+  gap: 8px;
+}
+
+.mv-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8ecf6;
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.mv-btn:hover:not(:disabled) {
+  background: rgba(74, 125, 255, 0.35);
+  border-color: rgba(74, 125, 255, 0.8);
+}
+
+.mv-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.mv-btn.danger:hover {
+  background: rgba(229, 72, 77, 0.3);
+  border-color: rgba(229, 72, 77, 0.8);
+}
+
+.mv-empty {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+.mv-empty-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.mv-empty-sub {
+  font-size: 12.5px;
+  line-height: 1.9;
+}
+
+.mv-foot {
+  position: fixed;
+  left: 20px;
+  bottom: 16px;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}

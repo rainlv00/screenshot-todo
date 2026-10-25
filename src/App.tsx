@@ -49,6 +49,7 @@ export default function App() {
   const [cropping, setCropping] = useState<{ file: string; width: number; height: number } | null>(null)
   const [calOpen, setCalOpen] = useState(false)
   const [cabinetOpen, setCabinetOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   // 拖拽过程中 dragId 要用 ref 同步拿，state 是异步的，首帧 dragover 会拿不到
@@ -108,6 +109,7 @@ export default function App() {
 
   // 桌面分区层被关掉时，开关也要弹回去
   useEffect(() => window.api.desk.onClosed(() => setCabinetOpen(false)), [])
+  useEffect(() => window.api.moveDesk.onClosed(() => setMoveOpen(false)), [])
   useEffect(() => window.api.onOpenSettings(() => setSettingsOpen(true)), [])
   useEffect(() => window.api.onPrefsChanged(applyPrefs), [applyPrefs])
 
@@ -614,6 +616,33 @@ export default function App() {
             >
               {prettyAccel(prefs.hotkeyDesk || 'Alt+D').join(' + ')}
             </button>
+          </div>
+
+          <div className="foot-item">
+            <button
+              className={`rec desk-sw move-sw ${moveOpen ? 'on' : 'off'}`}
+              onClick={async () => {
+                if (!moveOpen) {
+                  await window.api.moveDesk.open()
+                  setMoveOpen(true)
+                  setCabinetOpen(false)
+                } else {
+                  await window.api.moveDesk.close()
+                  setMoveOpen(false)
+                }
+              }}
+              role="switch"
+              aria-checked={moveOpen}
+              title="搬运模式：把桌面文件真搬进收纳目录，退出时原样放回"
+            >
+              <span className="rec-track">
+                <span className="rec-knob" />
+              </span>
+              <span className="rec-label">分区2</span>
+            </button>
+            <span className="kbd-chip" style={{ opacity: 0.45 }}>
+              手动
+            </span>
           </div>
 
           <button className="btn paste-btn" onClick={pasteNow}>
