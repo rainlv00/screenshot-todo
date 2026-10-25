@@ -1673,7 +1673,9 @@ html.toast-mode #root {
   margin-left: auto;
 }
 
-@media (max-width: 366px) {
+/* 只在真的很窄时才藏快捷键。注意高分屏缩放会让窗口 CSS 宽度变小，
+   阈值不能设太高，否则 125%/150% 缩放下快捷键会莫名消失 */
+@media (max-width: 300px) {
   .kbd-chip {
     display: none;
   }
