@@ -76,18 +76,11 @@ export function SettingsModal({ prefs, onPatch, onOpenHelp, onClose }: Props) {
           <div className="row">
             <div className="row-main">
               <div className="row-title">打开 / 关闭桌面分区</div>
-              <div className="row-sub">按一下把分区面板铺到桌面上，再按收起</div>
+              <div className="row-sub">按一下把桌面文件收进分区面板，再按一次全部放回</div>
             </div>
             <HotkeyField value={p.hotkeyDesk} onChange={(acc) => set({ hotkeyDesk: acc }, true)} />
           </div>
 
-          <div className="row">
-            <div className="row-main">
-              <div className="row-title">打开 / 关闭分区2</div>
-              <div className="row-sub">搬运模式：真把桌面文件移进收纳目录，退出时放回</div>
-            </div>
-            <HotkeyField value={p.hotkeyDesk2} onChange={(acc) => set({ hotkeyDesk2: acc }, true)} />
-          </div>
 
 
           <div className="row">

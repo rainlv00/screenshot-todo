@@ -49,7 +49,6 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [cropping, setCropping] = useState<{ file: string; width: number; height: number } | null>(null)
   const [calOpen, setCalOpen] = useState(false)
-  const [cabinetOpen, setCabinetOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -108,18 +107,7 @@ export default function App() {
 
   useEffect(() => window.api.onChanged(refresh), [refresh])
 
-  // 桌面分区层被关掉时，开关也要弹回去
-  useEffect(() => window.api.desk.onClosed(() => setCabinetOpen(false)), [])
   useEffect(() => window.api.moveDesk.onClosed(() => setMoveOpen(false)), [])
-  // 分区层没能正常接管桌面时会被看门狗强制关掉，这里复位开关并说明原因
-  useEffect(
-    () =>
-      window.api.files.onUnsafeClosed(() => {
-        setCabinetOpen(false)
-        setFlash('分区层启动异常，已自动关闭以免挡住桌面，请再试一次')
-      }),
-    []
-  )
   useEffect(() => window.api.onOpenSettings(() => setSettingsOpen(true)), [])
   useEffect(() => window.api.onPrefsChanged(applyPrefs), [applyPrefs])
 
@@ -590,43 +578,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="foot-item">
-            <button
-              className={`rec desk-sw ${cabinetOpen ? 'on' : 'off'}`}
-              onClick={async () => {
-                if (!cabinetOpen) {
-                  await window.api.files.openWindow()
-                  setCabinetOpen(true)
-                } else {
-                  await window.api.desk.close()
-                  setCabinetOpen(false)
-                }
-              }}
-              role="switch"
-              aria-checked={cabinetOpen}
-              title={cabinetOpen ? '点一下关闭桌面分区' : '点一下在桌面显示分区'}
-            >
-              <span className="rec-track">
-                <span className="rec-knob" />
-              </span>
-              <span className="rec-label">分区</span>
-            </button>
-            <button
-              className="kbd-chip"
-              onClick={async () => {
-                if (cabinetOpen) {
-                  await window.api.desk.close()
-                  setCabinetOpen(false)
-                } else {
-                  await window.api.files.openWindow()
-                  setCabinetOpen(true)
-                }
-              }}
-              title="快捷键，按一下也能切换分区"
-            >
-              {prettyAccel(prefs.hotkeyDesk || 'Alt+D').join(' + ')}
-            </button>
-          </div>
+
 
           <div className="foot-item">
             <button
@@ -635,7 +587,6 @@ export default function App() {
                 if (!moveOpen) {
                   await window.api.moveDesk.open()
                   setMoveOpen(true)
-                  setCabinetOpen(false)
                 } else {
                   await window.api.moveDesk.close()
                   setMoveOpen(false)
@@ -643,12 +594,12 @@ export default function App() {
               }}
               role="switch"
               aria-checked={moveOpen}
-              title="搬运模式：把桌面文件真搬进收纳目录，退出时原样放回"
+              title="分区：把桌面文件收进来，关闭时原样放回"
             >
               <span className="rec-track">
                 <span className="rec-knob" />
               </span>
-              <span className="rec-label">分区2</span>
+              <span className="rec-label">分区</span>
             </button>
             <button
               className="kbd-chip"
@@ -659,12 +610,11 @@ export default function App() {
                 } else {
                   await window.api.moveDesk.open()
                   setMoveOpen(true)
-                  setCabinetOpen(false)
                 }
               }}
-              title="快捷键，按一下也能切换分区2"
+              title="快捷键，按一下也能切换分区"
             >
-              {prettyAccel(prefs.hotkeyDesk2 || 'Alt+S').join(' + ')}
+              {prettyAccel(prefs.hotkeyDesk || 'Alt+D').join(' + ')}
             </button>
           </div>
 

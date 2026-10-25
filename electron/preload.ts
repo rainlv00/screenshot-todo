@@ -59,13 +59,6 @@ const api = {
     openWindow: (): Promise<void> => ipcRenderer.invoke('files:openWindow'),
     closeAndRestore: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
       ipcRenderer.invoke('files:closeAndRestore'),
-    onUnsafeClosed: (cb: () => void): (() => void) => {
-      const h = () => cb()
-      ipcRenderer.on('desk:unsafe-closed', h)
-      return () => {
-        ipcRenderer.removeListener('desk:unsafe-closed', h)
-      }
-    },
     onWindowClosed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('files:closed', h)
@@ -77,14 +70,10 @@ const api = {
 
   // ---- 桌面分区 ----
   desk: {
-    files: (): Promise<{ files: any[]; added: { name: string; category: string }[] }> =>
-      ipcRenderer.invoke('desk:files'),
-    collect: (): Promise<{ added: number; total: number }> => ipcRenderer.invoke('desk:collect'),
     icon: (p: string, ext: string, isDir: boolean): Promise<string> =>
       ipcRenderer.invoke('desk:icon', p, ext, isDir),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
-    close: (): Promise<void> => ipcRenderer.invoke('desk:close'),
     setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
     setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
       ipcRenderer.send('desk:shape', rects),

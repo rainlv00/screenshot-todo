@@ -64,8 +64,6 @@ import {
   restoreOne,
   restoreAll,
   storageRoot,
-  syncDeskFiles,
-  listDeskFiles,
   archiveDesktop,
   listArchived,
   archivePendingCount
@@ -246,124 +244,6 @@ async function getFileIconUrl(p: string, ext: string, isDir: boolean): Promise<s
   return url
 }
 
-let deskWin: BrowserWindow | null = null
-/** 分区窗口是否已成功应用过形状（看门狗用） */
-let deskShapeApplied = false
-/** 打开分区前桌面图标本来是显示的话，关掉时要负责还原 */
-let iconsWereHidden = false
-
-/** 铺在桌面上的透明层：空白处鼠标穿透，面板上才响应 */
-function createDeskWindow(): void {
-  if (deskWin && !deskWin.isDestroyed()) {
-    deskWin.show()
-    return
-  }
-  const b = screen.getPrimaryDisplay().bounds
-  deskWin = new BrowserWindow({
-    x: b.x,
-    y: b.y,
-    width: b.width,
-    height: b.height,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    movable: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    hasShadow: false,
-    backgroundColor: '#00000000',
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      spellcheck: false
-    }
-  })
-
-  loadRenderer(deskWin, 'desk=1')
-  deskWin.setIgnoreMouseEvents(true, { forward: true })
-
-  // 第一次进分区给一次操作指引
-  if (getSetting('desk_guide_shown', '0') !== '1') {
-    setSetting('desk_guide_shown', '1')
-    setTimeout(() => {
-      void dialog.showMessageBox({
-        type: 'info',
-        buttons: ['知道了'],
-        defaultId: 0,
-        title: '桌面分区怎么用',
-        message: '桌面图标已自动收起，退出分区会还原',
-        detail:
-          '· 拖面板标题栏：移动位置\n' +
-          '· 拖面板四边或四角：改大小\n' +
-          '· 点面板右上角 ⋯：改颜色、透明度、锁定、新建分区\n' +
-          '· 把文件拖到别的分区：改变归属\n' +
-          '· 新复制到桌面的文件会自动收进对应分区，右上角显示归到了哪里\n' +
-          '· 按 Esc 或再按一次分区开关：退出分区'
-      })
-    }, 1000)
-  }
-
-  // 刻意不动系统的「显示桌面图标」：桌面图标和分区并存是小智那种做法，
-  // 而且改这个值要重启资源管理器才生效，风险远大于收益。想隐藏由用户自己关。
-
-  // 穿透状态下渲染层收不到键盘，ESC 在这里兜底，保证永远能退出来
-  deskWin.webContents.on('before-input-event', (_e, input) => {
-    if (input.type === 'keyDown' && input.key === 'Escape') deskWin?.close()
-  })
-  // 先透明再渐显，避免 Windows 上透明窗口首帧白闪
-  deskWin.once('ready-to-show', () => {
-    deskWin!.setOpacity(0)
-    deskWin!.showInactive()
-    mainWin?.moveTop()
-    setTimeout(() => {
-      try {
-        deskWin?.setOpacity(1)
-      } catch {
-        /* 窗口可能已关闭 */
-      }
-    }, 90)
-  })
-  deskWin.on('closed', () => {
-    deskWin = null
-    mainWin?.webContents.send('desk:closed')
-  })
-
-  // 看门狗：窗口铺满全屏，万一渲染层没成功把形状设上来，
-  // 它就会一直挡着桌面。8 秒内没收到形状就自己关掉，宁可功能不可用也不能锁死桌面。
-  deskShapeApplied = false
-  deskWin.webContents.on('did-finish-load', () => {
-    setTimeout(() => {
-      if (!deskShapeApplied && deskWin && !deskWin.isDestroyed()) {
-        try {
-          deskWin.close()
-        } catch {
-          /* 已经没了就算了 */
-        }
-        mainWin?.webContents.send('desk:unsafe-closed')
-      }
-    }, 8000)
-  })
-
-
-  if (process.env.WDY_SHOT_DESK === '1') {
-    deskWin.webContents.once('did-finish-load', () => {
-      setTimeout(async () => {
-        try {
-          const img = await deskWin!.webContents.capturePage()
-          fs.writeFileSync(path.join(APP_ROOT, 'shot-desk.png'), img.toPNG())
-        } catch {
-          /* 忽略 */
-        }
-        app.quit()
-      }, 2600)
-    })
-  }
-}
-
 let previewWin: BrowserWindow | null = null
 
 /** 图片预览独立窗口：大小位置独立记忆，不受主窗口限制 */
@@ -429,9 +309,6 @@ function createMoveWindow(): void {
     moveWin.focus()
     return
   }
-  // 两个透明层同时铺着会抢鼠标，必须互斥
-  if (deskWin && !deskWin.isDestroyed()) deskWin.close()
-
   const b = screen.getPrimaryDisplay().bounds
   moveWin = new BrowserWindow({
     x: b.x,
@@ -971,11 +848,6 @@ function registerHotkeys(): void {
   const onPause = () => void toggleCapture()
   // 分区快捷键：已开就关，没开就开
   const onDesk = () => {
-    if (deskWin && !deskWin.isDestroyed()) deskWin.close()
-    else createDeskWindow()
-  }
-  // 分区2 同理，两个模式互斥
-  const onDesk2 = () => {
     if (moveWin && !moveWin.isDestroyed()) moveWin.close()
     else createMoveWindow()
   }
@@ -1264,14 +1136,6 @@ function registerIpc(): void {
   ipcMain.handle('files:refreshMissing', () => refreshMissing())
   ipcMain.handle('files:restoreOne', (_e, id: string) => restoreOne(id))
   ipcMain.handle('files:storageRoot', () => storageRoot())
-  ipcMain.handle('files:openWindow', () => createDeskWindow())
-  ipcMain.handle('desk:close', () => deskWin?.close())
-  ipcMain.handle('desk:files', () => syncDeskFiles())
-  /** 一键收录：立刻扫一遍桌面，把新出现的文件归到对应分区 */
-  ipcMain.handle('desk:collect', () => {
-    const res = syncDeskFiles()
-    return { added: res.added.length, total: res.files.length, detail: res.added }
-  })
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
 
   /* ---- 分区2：搬运模式 ---- */
@@ -1295,10 +1159,6 @@ function registerIpc(): void {
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
   ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
-  ipcMain.on('desk:interactive', (_e, on: boolean) => {
-    deskWin?.setIgnoreMouseEvents(!on, { forward: true })
-  })
-
   /**
    * 把窗口裁成"只有面板存在"的形状。
    * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟，
@@ -1306,9 +1166,8 @@ function registerIpc(): void {
    * 传空数组 = 恢复整窗矩形。
    */
   ipcMain.on('desk:shape', (e, rects: { x: number; y: number; width: number; height: number }[]) => {
-    const win = e.sender === deskWin?.webContents ? deskWin : e.sender === moveWin?.webContents ? moveWin : null
+    const win = e.sender === moveWin?.webContents ? moveWin : null
     if (!win || win.isDestroyed()) return
-    if (win === deskWin) deskShapeApplied = true
     try {
       const list = Array.isArray(rects) ? rects.filter((r) => r.width > 0 && r.height > 0) : []
       win.setShape(list)
@@ -1585,7 +1444,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc()
     ensureStartMenuShortcut()
     createMainWindow()
-  if (process.env.WDY_SHOT_DESK === '1') setTimeout(() => createDeskWindow(), 1200)
+  if (process.env.WDY_SHOT_DESK === '1') setTimeout(() => createMoveWindow(), 1200)
   // 截图用：直接扫一遍目录，再把界面切到文件视图
   if (process.env.WDY_SHOT_FILES === '1') {
     try {
