@@ -38,6 +38,7 @@ export default function MoveLayer() {
   const [cats, setCats] = useState<Cat[]>([])
   const [files, setFiles] = useState<FileItem[]>([])
   const [busy, setBusy] = useState(false)
+  const [dragOver, setDragOver] = useState<string | null>(null)
   const [tip, setTip] = useState('')
   const [root, setRoot] = useState('')
   const [icons, setIcons] = useState<Record<string, string>>({})
@@ -135,7 +136,34 @@ export default function MoveLayer() {
             key={cat.id}
             data-panel={cat.id}
             data-shape="1"
-            className="desk-panel mv-panel"
+            className={`desk-panel mv-panel ${dragOver === cat.id ? 'is-over' : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              setDragOver(cat.id)
+            }}
+            onDragLeave={() => setDragOver((v) => (v === cat.id ? null : v))}
+            onDrop={async (e) => {
+              e.preventDefault()
+              setDragOver(null)
+              const paths: string[] = []
+              for (const f of Array.from(e.dataTransfer.files)) {
+                const p = window.api.getPathForFile(f)
+                if (p) paths.push(p)
+              }
+              if (!paths.length) return
+              const r = (await window.api.moveDesk.add(paths)) as {
+                moved: { name: string; category: string }[]
+                failed: string[]
+              }
+              await load()
+              if (r.moved.length) {
+                const parts = r.moved.slice(0, 3).map((a) => `${a.name} → ${a.category}`)
+                say(`收进来 ${parts.join('，')}${r.failed.length ? `；${r.failed.length} 个失败` : ''}`)
+              } else {
+                say(`${r.failed.length} 个文件搬不动，可能正被占用`)
+              }
+            }}
             style={{ left: 24 + (idx % 4) * 248, top: 24 + Math.floor(idx / 4) * 300 }}
           >
             <header className="dp-head" style={{ cursor: 'default' }}>
@@ -173,28 +201,25 @@ export default function MoveLayer() {
         )
       })}
 
-      <div className="mv-bar" data-shape="1">
-        <div className="mv-title">
-          分区2 · 搬运模式
-          <span className="mv-sub">
-            {files.length} 个文件在收纳目录里 · 关闭即全部放回
-          </span>
-        </div>
-        <div className="mv-acts">
-          <button className="mv-btn" onClick={doArchive} disabled={busy}>
-            {busy ? '搬运中…' : '归档桌面'}
-          </button>
-
-        </div>
-      </div>
+      {/* 平时只有一个小圆钮，鼠标移上去才展开，不挡桌面 */}
+      <button
+        className="mv-archive"
+        data-shape="1"
+        title="把桌面上的文件全部收进分区"
+        onClick={doArchive}
+        disabled={busy}
+      >
+        <span className="mv-archive-ico">{busy ? '…' : '⤓'}</span>
+        <span className="mv-archive-txt">归档桌面</span>
+      </button>
 
       {files.length === 0 && (
         <div className="mv-empty">
-          <div className="mv-empty-title">分区2 · 搬运模式</div>
+          <div className="mv-empty-title">桌面分区</div>
           <div className="mv-empty-sub">
-            点右上角「归档桌面」，把桌面上的文件全部搬进收纳目录
+            把桌面上的文件拖到面板里，或者点右上角 ⤓ 一次全收
             <br />
-            关掉分区2 会自动全部放回，文件不会丢
+            关掉分区会自动全部放回，文件不会丢
           </div>
         </div>
       )}

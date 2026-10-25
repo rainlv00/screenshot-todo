@@ -94,6 +94,8 @@ const api = {
     pending: (): Promise<number> => ipcRenderer.invoke('movedesk:pending'),
     archive: (): Promise<{ moved: { name: string; category: string }[]; failed: string[]; scanned: number }> =>
       ipcRenderer.invoke('movedesk:archive'),
+    add: (paths: string[]): Promise<{ moved: { name: string; category: string }[]; failed: string[] }> =>
+      ipcRenderer.invoke('movedesk:add', paths),
     restore: (id: string): Promise<boolean> => ipcRenderer.invoke('movedesk:restore', id),
     restoreAllAndClose: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
       ipcRenderer.invoke('movedesk:restoreAllAndClose'),

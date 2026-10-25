@@ -633,3 +633,28 @@ export function archivePendingCount(): number {
   const r = getDb().prepare("SELECT COUNT(*) AS n FROM files WHERE state = 'inbox'").get() as { n: number }
   return r.n
 }
+
+/** 批量把指定路径的文件搬进收纳目录（拖拽收录用） */
+export function addFilesByPaths(paths: string[]): {
+  moved: { name: string; category: string }[]
+  failed: string[]
+} {
+  const db = getDb()
+  const catName = new Map<string, string>()
+  for (const c of db.prepare('SELECT id, name FROM file_categories').all() as any[]) {
+    catName.set(c.id, c.name)
+  }
+
+  const moved: { name: string; category: string }[] = []
+  const failed: string[] = []
+
+  for (const p of paths) {
+    const item = addFileByPath(p)
+    if (item) {
+      moved.push({ name: item.name, category: catName.get(item.categoryId ?? '') ?? '其他' })
+    } else {
+      failed.push(path.basename(p))
+    }
+  }
+  return { moved, failed }
+}

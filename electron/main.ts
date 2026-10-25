@@ -65,6 +65,7 @@ import {
   restoreAll,
   storageRoot,
   archiveDesktop,
+  addFilesByPaths,
   listArchived,
   archivePendingCount
 } from './files'
@@ -1149,6 +1150,8 @@ function registerIpc(): void {
   ipcMain.handle('movedesk:files', () => listArchived())
   ipcMain.handle('movedesk:pending', () => archivePendingCount())
   ipcMain.handle('movedesk:archive', () => archiveDesktop())
+  /** 把指定路径的文件搬进来（拖拽/单个收录用） */
+  ipcMain.handle('movedesk:add', (_e, paths: string[]) => addFilesByPaths(paths))
   ipcMain.handle('movedesk:restore', (_e, id: string) => restoreOne(id))
   ipcMain.handle('movedesk:restoreAll', () => restoreAll())
   ipcMain.handle('movedesk:restoreAllAndClose', () => {
