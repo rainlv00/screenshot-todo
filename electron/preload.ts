@@ -59,6 +59,13 @@ const api = {
     openWindow: (): Promise<void> => ipcRenderer.invoke('files:openWindow'),
     closeAndRestore: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
       ipcRenderer.invoke('files:closeAndRestore'),
+    onUnsafeClosed: (cb: () => void): (() => void) => {
+      const h = () => cb()
+      ipcRenderer.on('desk:unsafe-closed', h)
+      return () => {
+        ipcRenderer.removeListener('desk:unsafe-closed', h)
+      }
+    },
     onWindowClosed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('files:closed', h)

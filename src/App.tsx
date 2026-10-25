@@ -111,6 +111,15 @@ export default function App() {
   // 桌面分区层被关掉时，开关也要弹回去
   useEffect(() => window.api.desk.onClosed(() => setCabinetOpen(false)), [])
   useEffect(() => window.api.moveDesk.onClosed(() => setMoveOpen(false)), [])
+  // 分区层没能正常接管桌面时会被看门狗强制关掉，这里复位开关并说明原因
+  useEffect(
+    () =>
+      window.api.files.onUnsafeClosed(() => {
+        setCabinetOpen(false)
+        setFlash('分区层启动异常，已自动关闭以免挡住桌面，请再试一次')
+      }),
+    []
+  )
   useEffect(() => window.api.onOpenSettings(() => setSettingsOpen(true)), [])
   useEffect(() => window.api.onPrefsChanged(applyPrefs), [applyPrefs])
 

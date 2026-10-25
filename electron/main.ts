@@ -247,6 +247,8 @@ async function getFileIconUrl(p: string, ext: string, isDir: boolean): Promise<s
 }
 
 let deskWin: BrowserWindow | null = null
+/** 分区窗口是否已成功应用过形状（看门狗用） */
+let deskShapeApplied = false
 /** 打开分区前桌面图标本来是显示的话，关掉时要负责还原 */
 let iconsWereHidden = false
 
@@ -305,13 +307,8 @@ function createDeskWindow(): void {
     }, 1000)
   }
 
-  // 进分区就收起系统桌面图标，退出时原样还回去
-  if (getSetting('desk_hide_icons', '1') === '1') {
-    void getIconsHidden().then((already) => {
-      iconsWereHidden = !already
-      if (!already) void setIconsHidden(true)
-    })
-  }
+  // 刻意不动系统的「显示桌面图标」：桌面图标和分区并存是小智那种做法，
+  // 而且改这个值要重启资源管理器才生效，风险远大于收益。想隐藏由用户自己关。
 
   // 穿透状态下渲染层收不到键盘，ESC 在这里兜底，保证永远能退出来
   deskWin.webContents.on('before-input-event', (_e, input) => {
@@ -332,12 +329,25 @@ function createDeskWindow(): void {
   })
   deskWin.on('closed', () => {
     deskWin = null
-    if (iconsWereHidden) {
-      iconsWereHidden = false
-      void setIconsHidden(false)
-    }
     mainWin?.webContents.send('desk:closed')
   })
+
+  // 看门狗：窗口铺满全屏，万一渲染层没成功把形状设上来，
+  // 它就会一直挡着桌面。8 秒内没收到形状就自己关掉，宁可功能不可用也不能锁死桌面。
+  deskShapeApplied = false
+  deskWin.webContents.on('did-finish-load', () => {
+    setTimeout(() => {
+      if (!deskShapeApplied && deskWin && !deskWin.isDestroyed()) {
+        try {
+          deskWin.close()
+        } catch {
+          /* 已经没了就算了 */
+        }
+        mainWin?.webContents.send('desk:unsafe-closed')
+      }
+    }, 8000)
+  })
+
 
   if (process.env.WDY_SHOT_DESK === '1') {
     deskWin.webContents.once('did-finish-load', () => {
@@ -1298,6 +1308,7 @@ function registerIpc(): void {
   ipcMain.on('desk:shape', (e, rects: { x: number; y: number; width: number; height: number }[]) => {
     const win = e.sender === deskWin?.webContents ? deskWin : e.sender === moveWin?.webContents ? moveWin : null
     if (!win || win.isDestroyed()) return
+    if (win === deskWin) deskShapeApplied = true
     try {
       const list = Array.isArray(rects) ? rects.filter((r) => r.width > 0 && r.height > 0) : []
       win.setShape(list)
