@@ -4520,3 +4520,62 @@ html.preview-mode #root {
 .mv-archive:hover .mv-archive-txt {
   max-width: 80px;
 }
+
+/* 空状态：整块可投放 */
+.mv-empty {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.mv-empty-box {
+  min-width: 380px;
+  padding: 42px 56px;
+  border-radius: 18px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(28, 32, 42, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mv-empty.is-over .mv-empty-box {
+  border-color: rgba(74, 125, 255, 0.9);
+  background: rgba(74, 125, 255, 0.16);
+}
+
+.mv-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 10px;
+}
+
+.mv-empty-sub {
+  font-size: 12px;
+  line-height: 1.9;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* 主窗口底部：分区打开时才出现的「归档」小按钮 */
+.footer .bare {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 165, 36, 0.5);
+  background: rgba(245, 165, 36, 0.14);
+  color: #c8811a;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.footer .bare:hover {
+  background: rgba(245, 165, 36, 0.26);
+  border-color: #f5a524;
+  color: #a86a10;
+}

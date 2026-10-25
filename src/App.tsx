@@ -618,6 +618,30 @@ export default function App() {
             </button>
           </div>
 
+          {moveOpen && (
+            <button
+              className="bare"
+              onClick={async () => {
+                const r = (await window.api.moveDesk.archive()) as {
+                  moved: { name: string; category: string }[]
+                  failed: string[]
+                  scanned: number
+                }
+                if (r.moved.length) {
+                  const parts = r.moved.slice(0, 2).map((a) => `${a.name} → ${a.category}`)
+                  setFlash(`已收进分区：${parts.join('，')}${r.moved.length > 2 ? ` 等 ${r.moved.length} 个` : ''}`)
+                } else if (r.failed.length) {
+                  setFlash(`${r.failed.length} 个搬不动，可能正被 Excel/WPS 打开`)
+                } else {
+                  setFlash('桌面上没有可收的文件')
+                }
+              }}
+              title="把桌面上的文件全部收进分区"
+            >
+              ⤓ 归档
+            </button>
+          )}
+
           <button className="btn paste-btn" onClick={pasteNow}>
             收录剪贴板
           </button>
