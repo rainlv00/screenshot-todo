@@ -1288,6 +1288,31 @@ function registerIpc(): void {
   ipcMain.on('desk:interactive', (_e, on: boolean) => {
     deskWin?.setIgnoreMouseEvents(!on, { forward: true })
   })
+
+  /**
+   * 把窗口裁成"只有面板存在"的形状。
+   * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟，
+   * 也不再需要靠 mousemove 动态切 ignoreMouseEvents（那套会让拖拽掉 drop）。
+   * 传空数组 = 恢复整窗矩形。
+   */
+  ipcMain.on('desk:shape', (e, rects: { x: number; y: number; width: number; height: number }[]) => {
+    const win = e.sender === deskWin?.webContents ? deskWin : e.sender === moveWin?.webContents ? moveWin : null
+    if (!win || win.isDestroyed()) return
+    try {
+      const list = Array.isArray(rects) ? rects.filter((r) => r.width > 0 && r.height > 0) : []
+      win.setShape(list)
+      // 形状里的部分是正常窗口，形状外系统直接穿透到桌面；
+      // 万一某个平台 setShape 没生效，ignoreMouseEvents(true) 保证不挡桌面
+      win.setIgnoreMouseEvents(list.length === 0, { forward: true })
+    } catch {
+      // setShape 不生效时退回到老办法：整窗不挡鼠标
+      try {
+        win.setIgnoreMouseEvents(true, { forward: true })
+      } catch {
+        /* 忽略 */
+      }
+    }
+  })
   /** 关掉文件柜：确认后把所有还收着的文件放回原处，再关窗口 */
   ipcMain.handle('files:closeAndRestore', async () => {
     const pending = listFiles(null).length

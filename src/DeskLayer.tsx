@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useWindowShape } from './useWindowShape'
 
 interface Cat {
   id: string
@@ -74,6 +75,7 @@ export default function DeskLayer() {
     }
   })
   const [dragOverCat, setDragOverCat] = useState<string | null>(null)
+  const [animating, setAnimating] = useState(false)
   const [style, setStyle] = useState<Record<string, PanelStyle>>(loadStyle)
   const [menuCat, setMenuCat] = useState<string | null>(null)
   const [tip, setTip] = useState('')
@@ -132,29 +134,6 @@ export default function DeskLayer() {
     }
   }, [files])
 
-  // 鼠标在面板/弹层/按钮上才接管，空白处穿透到桌面
-  useEffect(() => {
-    // 弹层开着的时候必须整窗可交互，否则点不到（会把整个桌面卡住）
-    if (newOpen || menuCat) {
-      window.api.desk.setInteractive(true)
-      return
-    }
-    let over = false
-    const onMove = (e: MouseEvent) => {
-      const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-      const inside = !!el?.closest('[data-panel], .desk-collect')
-      if (inside !== over) {
-        over = inside
-        window.api.desk.setInteractive(inside)
-      }
-    }
-    window.addEventListener('mousemove', onMove)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.api.desk.setInteractive(false)
-    }
-  }, [newOpen, menuCat])
-
   // ESC 是逃生口：不管卡在哪，按一下就能收起桌面层
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -177,6 +156,7 @@ export default function DeskLayer() {
     const baseX = origin.x
     const baseY = origin.y
     let moved = false
+    setAnimating(true)
 
     const onMove = (ev: PointerEvent) => {
       const dx = ev.clientX - startX
@@ -194,6 +174,7 @@ export default function DeskLayer() {
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      setAnimating(false)
       if (moved) {
         setPos((cur) => {
           try {
@@ -250,9 +231,11 @@ export default function DeskLayer() {
         return next
       })
     }
+    setAnimating(true)
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      setAnimating(false)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -302,6 +285,14 @@ export default function DeskLayer() {
     [cats, files]
   )
 
+  // 窗口形状 = 面板 + 工具条 + 新建按钮，形状外交给系统穿透
+  useWindowShape(
+    (rects) => window.api.desk.setShape(rects),
+    [visible, pos, style, collapsed, newOpen, menuCat, animating],
+    newOpen || menuCat !== null || animating
+  )
+
+
   return (
     <div className="desk">
       {visible.map(({ cat, items }, idx) => {
@@ -318,6 +309,7 @@ export default function DeskLayer() {
           <section
             key={cat.id}
             data-panel={cat.id}
+            data-shape="1"
             className={`desk-panel ${isCollapsed ? 'is-collapsed' : ''} ${
               dragOverCat === cat.id ? 'is-over' : ''
             } ${locked ? 'is-locked' : ''}`}
@@ -431,6 +423,7 @@ export default function DeskLayer() {
       })}
 
       <button
+        data-shape="1"
         className={`desk-collect ${collecting ? 'is-busy' : ''}`}
         title="扫一遍桌面，把新出现的文件收进对应分区"
         onClick={async () => {

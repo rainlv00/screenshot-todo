@@ -79,6 +79,8 @@ const api = {
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
     close: (): Promise<void> => ipcRenderer.invoke('desk:close'),
     setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
+    setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
+      ipcRenderer.send('desk:shape', rects),
     onClosed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('desk:closed', h)
@@ -100,6 +102,8 @@ const api = {
     restoreAllAndClose: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
       ipcRenderer.invoke('movedesk:restoreAllAndClose'),
     setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
+    setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
+      ipcRenderer.send('desk:shape', rects),
     onClosed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('movedesk:closed', h)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useWindowShape } from './useWindowShape'
 
 interface Cat {
   id: string
@@ -77,23 +78,7 @@ export default function MoveLayer() {
     }
   }, [files])
 
-  // 穿透：面板和操作按钮可交互
-  useEffect(() => {
-    let over = false
-    const onMove = (e: MouseEvent) => {
-      const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-      const inside = !!el?.closest('[data-panel], .mv-btn, .mv-bar')
-      if (inside !== over) {
-        over = inside
-        window.api.moveDesk.setInteractive(inside)
-      }
-    }
-    window.addEventListener('mousemove', onMove)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.api.moveDesk.setInteractive(false)
-    }
-  }, [])
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -139,6 +124,8 @@ export default function MoveLayer() {
     [cats, files]
   )
 
+  useWindowShape((rects) => window.api.desk.setShape(rects), [groups, files], false)
+
   return (
     <div className="desk">
       {groups.map(({ cat, items }, idx) => {
@@ -147,6 +134,7 @@ export default function MoveLayer() {
           <section
             key={cat.id}
             data-panel={cat.id}
+            data-shape="1"
             className="desk-panel mv-panel"
             style={{ left: 24 + (idx % 4) * 248, top: 24 + Math.floor(idx / 4) * 300 }}
           >
@@ -185,7 +173,7 @@ export default function MoveLayer() {
         )
       })}
 
-      <div className="mv-bar">
+      <div className="mv-bar" data-shape="1">
         <div className="mv-title">
           分区2 · 搬运模式
           <span className="mv-sub">
