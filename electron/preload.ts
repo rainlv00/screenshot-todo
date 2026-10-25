@@ -70,7 +70,8 @@ const api = {
 
   // ---- 桌面分区 ----
   desk: {
-    files: (): Promise<any[]> => ipcRenderer.invoke('desk:files'),
+    files: (): Promise<{ files: any[]; added: { name: string; category: string }[] }> =>
+      ipcRenderer.invoke('desk:files'),
     collect: (): Promise<{ added: number; total: number }> => ipcRenderer.invoke('desk:collect'),
     icon: (p: string, ext: string, isDir: boolean): Promise<string> =>
       ipcRenderer.invoke('desk:icon', p, ext, isDir),

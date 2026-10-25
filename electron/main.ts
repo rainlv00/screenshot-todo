@@ -281,6 +281,27 @@ function createDeskWindow(): void {
   loadRenderer(deskWin, 'desk=1')
   deskWin.setIgnoreMouseEvents(true, { forward: true })
 
+  // 第一次进分区给一次操作指引
+  if (getSetting('desk_guide_shown', '0') !== '1') {
+    setSetting('desk_guide_shown', '1')
+    setTimeout(() => {
+      void dialog.showMessageBox({
+        type: 'info',
+        buttons: ['知道了'],
+        defaultId: 0,
+        title: '桌面分区怎么用',
+        message: '桌面图标已自动收起，退出分区会还原',
+        detail:
+          '· 拖面板标题栏：移动位置\n' +
+          '· 拖面板四边或四角：改大小\n' +
+          '· 点面板右上角 ⋯：改颜色、透明度、锁定、新建分区\n' +
+          '· 把文件拖到别的分区：改变归属\n' +
+          '· 新复制到桌面的文件会自动收进对应分区，右上角显示归到了哪里\n' +
+          '· 按 Esc 或再按一次分区开关：退出分区'
+      })
+    }, 1000)
+  }
+
   // 进分区就收起系统桌面图标，退出时原样还回去
   if (getSetting('desk_hide_icons', '1') === '1') {
     void getIconsHidden().then((already) => {
@@ -1168,10 +1189,8 @@ function registerIpc(): void {
   ipcMain.handle('desk:files', () => syncDeskFiles())
   /** 一键收录：立刻扫一遍桌面，把新出现的文件归到对应分区 */
   ipcMain.handle('desk:collect', () => {
-    const before = listDeskFiles().length
-    syncDeskFiles()
-    const after = listDeskFiles().length
-    return { added: Math.max(0, after - before), total: after }
+    const res = syncDeskFiles()
+    return { added: res.added.length, total: res.files.length, detail: res.added }
   })
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))

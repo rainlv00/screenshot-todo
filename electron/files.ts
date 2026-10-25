@@ -1,3 +1,4 @@
+import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -370,7 +371,15 @@ export function refreshMissing(): number {
 export function defaultWatchDirs(): string[] {
   const home = process.env.USERPROFILE || ''
   const out: string[] = []
-  const desktop = path.join(home, 'Desktop')
+  // app.getPath('desktop') 会处理 OneDrive 重定向、非中文系统等情况，
+  // 自己拼 USERPROFILE\Desktop 在开了 OneDrive 备份的机器上会指到空目录
+  const desktop = (() => {
+    try {
+      return app.getPath('desktop')
+    } catch {
+      return path.join(home, 'Desktop')
+    }
+  })()
   const publicDesktop = path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop')
   for (const d of [desktop, publicDesktop]) {
     if (fs.existsSync(d)) out.push(d)
@@ -458,10 +467,17 @@ export interface DeskFile {
 }
 
 /** 扫描桌面并同步到库，state='desk' 表示"只是桌面分区展示"，文件没被移动 */
-export function syncDeskFiles(): FileItem[] {
+export interface DeskSyncResult {
+  files: FileItem[]
+  /** 这次新收录的文件，带上归属分区名，方便界面提示 */
+  added: { name: string; category: string }[]
+}
+
+export function syncDeskFiles(): DeskSyncResult {
   const db = getDb()
   const raw = scanDesktopRaw()
   const alive = new Set(raw.map((f) => f.path))
+  const added: { name: string; category: string }[] = []
 
   for (const f of raw) {
     const row = db.prepare('SELECT id FROM files WHERE path = ?').get(f.path) as { id: string } | undefined
@@ -477,6 +493,7 @@ export function syncDeskFiles(): FileItem[] {
       db.prepare(
         "INSERT INTO files(id, path, orig_path, state, name, ext, size, mtime, category_id, added_at, moved_at, last_seen) VALUES(?,?,'','desk',?,?,?,?,?,?,0,?)"
       ).run(`f_${randomUUID().slice(0, 8)}`, f.path, f.name, f.ext, f.size, f.mtime, cat, now(), now())
+      added.push({ name: f.name, category: cat })
     }
   }
 
@@ -489,7 +506,13 @@ export function syncDeskFiles(): FileItem[] {
     db.prepare('UPDATE files SET missing = ? WHERE id = ?').run(alive.has(r.path) ? 0 : 1, r.id)
   }
 
-  return listDeskFiles()
+  const files = listDeskFiles()
+  // 把分类 id 换成名字，界面直接用
+  const catName = new Map<string, string>()
+  for (const c of db.prepare('SELECT id, name FROM file_categories').all() as any[]) {
+    catName.set(c.id, c.name)
+  }
+  return { files, added: added.map((a) => ({ name: a.name, category: catName.get(a.category) ?? '其他' })) }
 }
 
 export function listDeskFiles(): FileItem[] {

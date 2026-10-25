@@ -87,12 +87,19 @@ export default function DeskLayer() {
   const dragFileId = useRef<string | null>(null)
 
   const load = useCallback(async () => {
-    const [c, f] = await Promise.all([
+    const [c, res] = await Promise.all([
       window.api.files.categories() as Promise<Cat[]>,
-      window.api.desk.files() as Promise<DeskFile[]>
+      window.api.desk.files() as Promise<{ files: DeskFile[]; added: { name: string; category: string }[] }>
     ])
     setCats(c)
-    setFiles(f)
+    setFiles(res.files)
+    // 新收进来的文件要明确告诉用户归到哪了
+    if (res.added && res.added.length) {
+      const parts = res.added.slice(0, 3).map((a) => `${a.name} → ${a.category}`)
+      const more = res.added.length > 3 ? ` 等 ${res.added.length} 个` : ''
+      setTip(`已收录 ${parts.join('，')}${more}`)
+      window.setTimeout(() => setTip(''), 3600)
+    }
   }, [])
 
   useEffect(() => {
@@ -429,11 +436,21 @@ export default function DeskLayer() {
         onClick={async () => {
           if (collecting) return
           setCollecting(true)
-          const r = await window.api.desk.collect()
+          const r = (await window.api.desk.collect()) as {
+            added: number
+            total: number
+            detail: { name: string; category: string }[]
+          }
           await load()
           setCollecting(false)
-          setTip(r.added > 0 ? `收进来 ${r.added} 个新文件` : '没有新文件，共 ' + r.total + ' 个')
-          window.setTimeout(() => setTip(''), 2400)
+          if (r.added > 0) {
+            const parts = r.detail.slice(0, 3).map((a) => `${a.name} → ${a.category}`)
+            const more = r.detail.length > 3 ? ` 等 ${r.detail.length} 个` : ''
+            setTip(`收了 ${parts.join('，')}${more}`)
+          } else {
+            setTip(`没有新文件，共 ${r.total} 个`)
+          }
+          window.setTimeout(() => setTip(''), 3600)
         }}
       >
         {collecting ? '收集中…' : '一键收录'}
