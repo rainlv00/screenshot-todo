@@ -118,25 +118,17 @@ export default function MoveLayer() {
     }
     await load()
     setBusy(false)
-    if (r.moved.length) {
+    if (r.moved.length && r.failed.length) {
+      say(`搬走 ${r.moved.length} 个；${r.failed.length} 个搬不动（被程序占用，关掉再试）：${r.failed.slice(0, 2).join('、')}`)
+    } else if (r.moved.length) {
       const parts = r.moved.slice(0, 3).map((a) => `${a.name} → ${a.category}`)
       const more = r.moved.length > 3 ? ` 等 ${r.moved.length} 个` : ''
-      say(`搬走 ${parts.join('，')}${more}${r.failed.length ? `，${r.failed.length} 个失败` : ''}`)
+      say(`搬走 ${parts.join('，')}${more}`)
     } else if (r.failed.length) {
-      say(`${r.failed.length} 个文件搬不动（可能被占用）`)
+      say(`${r.failed.length} 个文件搬不动，可能正被 Excel/WPS 打开：${r.failed.slice(0, 2).join('、')}`)
     } else {
       say('桌面上没有可搬的文件')
     }
-  }
-
-  async function doRestoreAll() {
-    const r = (await window.api.moveDesk.restoreAllAndClose()) as {
-      restored: number
-      failed: number
-      cancelled: boolean
-    }
-    if (r.cancelled) return
-    say(`已放回 ${r.restored} 个${r.failed ? `，${r.failed} 个失败` : ''}`)
   }
 
   const groups = useMemo(
@@ -196,15 +188,15 @@ export default function MoveLayer() {
       <div className="mv-bar">
         <div className="mv-title">
           分区2 · 搬运模式
-          <span className="mv-sub">{files.length} 个文件在收纳目录里</span>
+          <span className="mv-sub">
+            {files.length} 个文件在收纳目录里 · 关闭即全部放回
+          </span>
         </div>
         <div className="mv-acts">
           <button className="mv-btn" onClick={doArchive} disabled={busy}>
             {busy ? '搬运中…' : '归档桌面'}
           </button>
-          <button className="mv-btn danger" onClick={doRestoreAll}>
-            全部放回并退出
-          </button>
+
         </div>
       </div>
 
@@ -214,7 +206,7 @@ export default function MoveLayer() {
           <div className="mv-empty-sub">
             点右上角「归档桌面」，把桌面上的文件全部搬进收纳目录
             <br />
-            退出时会原样放回，文件不会丢
+            关掉分区2 会自动全部放回，文件不会丢
           </div>
         </div>
       )}

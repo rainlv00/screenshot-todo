@@ -270,7 +270,10 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
   const dst = uniquePath(dstDir, name)
 
   // 真的把文件挪进收纳目录
-  if (!safeMove(absPath, dst)) return null
+  if (!safeMove(absPath, dst)) {
+    archiveDebug(`safeMove 失败: ${absPath} -> ${dst}`)
+    return null
+  }
 
   const id = existed ? existed.id : `f_${randomUUID().slice(0, 8)}`
   const dstStat = fs.statSync(dst)
@@ -290,6 +293,7 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
       | { orig_path: string }
       | undefined
     if (!check || !check.orig_path) {
+      archiveDebug(`写库校验失败 orig_path 为空，回滚: ${name}`)
       safeMove(dst, absPath)
       db.prepare('DELETE FROM files WHERE id = ?').run(id)
       return null
@@ -575,6 +579,15 @@ export interface ArchiveResult {
 }
 
 /** 把桌面上的文件全部搬进收纳目录，并按扩展名分好类 */
+function archiveDebug(msg: string): void {
+  try {
+    const p = path.join(process.env.APPDATA || process.cwd(), '截图待办', 'archive-debug.log')
+    fs.appendFileSync(p, `${new Date().toISOString()} ${msg}\n`)
+  } catch {
+    /* 日志写不了就算了 */
+  }
+}
+
 export function archiveDesktop(): ArchiveResult {
   const raw = scanDesktopRaw()
   const db = getDb()
@@ -586,8 +599,17 @@ export function archiveDesktop(): ArchiveResult {
   const moved: { name: string; category: string }[] = []
   const failed: string[] = []
 
+  archiveDebug(`--- 开始归档，扫到 ${raw.length} 个文件，收纳根：${storageRoot()}`)
   for (const f of raw) {
-    const item = addFileByPath(f.path)
+    let item: FileItem | null = null
+    try {
+      item = addFileByPath(f.path)
+    } catch (e) {
+      archiveDebug(`异常 ${f.name}: ${e instanceof Error ? e.stack : String(e)}`)
+      failed.push(f.name)
+      continue
+    }
+    archiveDebug(`${f.name} -> ${item ? 'OK id=' + item.id : 'FAILED'}`)
     if (item) {
       moved.push({
         name: item.name,

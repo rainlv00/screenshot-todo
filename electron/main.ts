@@ -1266,26 +1266,18 @@ function registerIpc(): void {
 
   /* ---- 分区2：搬运模式 ---- */
   ipcMain.handle('movedesk:open', () => createMoveWindow())
-  ipcMain.handle('movedesk:close', () => moveWin?.close())
+  ipcMain.handle('movedesk:close', () => {
+    // 关掉分区2 就等于「全部放回」：静默还原，文件不在桌面留着
+    const res = restoreAll()
+    moveWin?.close()
+    return res
+  })
   ipcMain.handle('movedesk:files', () => listArchived())
   ipcMain.handle('movedesk:pending', () => archivePendingCount())
   ipcMain.handle('movedesk:archive', () => archiveDesktop())
   ipcMain.handle('movedesk:restore', (_e, id: string) => restoreOne(id))
   ipcMain.handle('movedesk:restoreAll', () => restoreAll())
-  ipcMain.handle('movedesk:restoreAllAndClose', async () => {
-    const pending = archivePendingCount()
-    if (pending > 0) {
-      const r = await dialog.showMessageBox({
-        type: 'question',
-        buttons: ['全部放回并退出', '取消'],
-        defaultId: 0,
-        cancelId: 1,
-        title: '退出分区2',
-        message: `还有 ${pending} 个文件被搬到了收纳目录`,
-        detail: '退出会把它们全部放回桌面原来的位置。文件不会丢失。'
-      })
-      if (r.response !== 0) return { restored: 0, failed: 0, cancelled: true }
-    }
+  ipcMain.handle('movedesk:restoreAllAndClose', () => {
     const res = restoreAll()
     moveWin?.close()
     return { ...res, cancelled: false }
@@ -1478,6 +1470,25 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => showMain())
 
   app.whenReady().then(() => {
+    // 归档自测
+    if (process.argv.includes('--archive-selftest')) {
+      const log: string[] = []
+      try {
+        initDb(DATA_DIR)
+        ensurePresetCategories()
+        const r = archiveDesktop()
+        log.push('scanned=' + r.scanned)
+        log.push('moved=' + JSON.stringify(r.moved))
+        log.push('failed=' + JSON.stringify(r.failed))
+        log.push('归档后柜内文件数: ' + listArchived().length)
+      } catch (e) {
+        log.push('异常: ' + (e instanceof Error ? e.stack : String(e)))
+      }
+      fs.writeFileSync(path.join(APP_ROOT, 'archive-selftest.log'), log.join('\n'))
+      app.quit()
+      return
+    }
+
     // 文件柜自测：移动 → 记录 → 还原 全链路，结果写日志文件
     if (process.argv.includes('--files-selftest')) {
       const log: string[] = []
