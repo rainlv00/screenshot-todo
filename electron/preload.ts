@@ -74,7 +74,6 @@ const api = {
       ipcRenderer.invoke('desk:icon', p, ext, isDir),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
-    properties: (p: string): Promise<boolean> => ipcRenderer.invoke('desk:properties', p),
     setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
     setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
       ipcRenderer.send('desk:shape', rects),
@@ -98,7 +97,6 @@ const api = {
     add: (paths: string[]): Promise<{ moved: { name: string; category: string }[]; failed: string[] }> =>
       ipcRenderer.invoke('movedesk:add', paths),
     restore: (id: string): Promise<boolean> => ipcRenderer.invoke('movedesk:restore', id),
-    dragOut: (id: string): void => ipcRenderer.send('movedesk:drag', id),
     fileMenu: (id: string, filePath: string): Promise<void> =>
       ipcRenderer.invoke('movedesk:fileMenu', id, filePath),
     deleteCategory: (id: string): Promise<{ restored: number; failed: number; ok: boolean }> =>

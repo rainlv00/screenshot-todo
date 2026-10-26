@@ -31,6 +31,8 @@ export interface FileItem {
   pinned: boolean
   missing: boolean
   addedAt: number
+  /** 是否是文件夹（文件夹显示 --，不显示大小） */
+  isDir?: boolean
 }
 
 /* ------------------------------------------------------------------ */
@@ -749,6 +751,11 @@ export function listArchived(): FileItem[] {
       exists = false
     }
     if (exists) {
+      try {
+        f.isDir = fs.statSync(f.path).isDirectory()
+      } catch {
+        /* 拿不到就当文件 */
+      }
       alive.push(f)
     } else {
       db.prepare("UPDATE files SET state = 'restored', missing = 1 WHERE id = ?").run(f.id)

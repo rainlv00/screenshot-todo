@@ -4699,7 +4699,7 @@ html.preview-mode #root {
 }
 
 /* 背景拉到很透时，用更明显的边框兜住面板范围 */
-.desk-panel[style*="--thin: 1"] {
+.desk-panel[data-thin='1'] {
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
 

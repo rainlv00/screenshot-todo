@@ -72,7 +72,6 @@ import {
   archivePendingCount
 } from './files'
 import { getIconsHidden, setIconsHidden } from './deskIcons'
-import { showFileProperties } from './shellExt'
 
 const isDev = !app.isPackaged
 const APP_ROOT = app.getAppPath()
@@ -383,28 +382,6 @@ function createMoveWindow(): void {
     moveWin = null
     mainWin?.webContents.send('movedesk:closed')
   })
-}
-
-/** 弹系统属性框：先收起分区层，属性框关掉后再恢复 */
-async function openFileProperties(filePath: string): Promise<boolean> {
-  const wasVisible = !!moveWin && !moveWin.isDestroyed() && moveWin.isVisible()
-  try {
-    moveWin?.hide()
-  } catch {
-    /* 忽略 */
-  }
-  try {
-    return await showFileProperties(filePath)
-  } finally {
-    if (wasVisible && moveWin && !moveWin.isDestroyed()) {
-      try {
-        moveWin.showInactive()
-        moveWin.setOpacity(1)
-      } catch {
-        /* 窗口可能已经关了 */
-      }
-    }
-  }
 }
 
 function createMainWindow(): void {
@@ -1253,111 +1230,6 @@ function registerIpc(): void {
    * Windows 上拖到桌面默认是「复制」，这里在拖拽发起后盯 10 秒桌面：
    * 一旦出现同名同大小的文件，就把收纳里那份删掉，等效于「移动」。
    */
-  ipcMain.on('movedesk:drag', async (e, id: string) => {
-    const item = listArchived().find((f) => f.id === id)
-    if (!item || !fs.existsSync(item.path)) return
-    try {
-      const ico = await app.getFileIcon(item.path, { size: 'normal' })
-      e.sender.startDrag({ file: item.path, icon: ico.isEmpty() ? nativeImage.createEmpty() : ico })
-    } catch {
-      return
-    }
-
-    // 拖拽是同步阻塞返回的，等它结束后再开始盯
-    const desk = app.getPath('desktop')
-    const name = path.basename(item.path)
-    const srcSize = fs.statSync(item.path).size
-    let ticks = 0
-    const timer = setInterval(() => {
-      ticks++
-      const landed = path.join(desk, name)
-      try {
-        if (fs.existsSync(landed) && fs.statSync(landed).size === srcSize) {
-          fs.unlinkSync(item.path)
-          getDb()
-            .prepare("UPDATE files SET state = 'restored', path = ? WHERE id = ?")
-            .run(landed, item.id)
-          clearInterval(timer)
-          moveWin?.webContents.send('movedesk:refreshed')
-        }
-      } catch {
-        /* 还没写完/被占用，下一轮再试 */
-      }
-      if (ticks >= 20) clearInterval(timer)
-    }, 500)
-  })
-  ipcMain.handle('movedesk:restoreAll', () => restoreAll())
-  ipcMain.handle('movedesk:restoreAllAndClose', () => {
-    const res = restoreAll()
-    moveWin?.close()
-    return { ...res, cancelled: false }
-  })
-  ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
-  ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
-  ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
-  ipcMain.handle('desk:properties', (_e, p: string) => openFileProperties(p))
-  /**
-   * 把窗口裁成"只有面板存在"的形状。
-   * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟，
-   * 也不再需要靠 mousemove 动态切 ignoreMouseEvents（那套会让拖拽掉 drop）。
-   * 传空数组 = 恢复整窗矩形。
-   */
-  ipcMain.on('desk:shape', (e, rects: { x: number; y: number; width: number; height: number }[]) => {
-    const win = e.sender === moveWin?.webContents ? moveWin : null
-    if (!win || win.isDestroyed()) return
-    try {
-      const list = Array.isArray(rects) ? rects.filter((r) => r.width > 0 && r.height > 0) : []
-      win.setShape(list)
-      // 形状里的部分是正常窗口，形状外系统直接穿透到桌面；
-      // 万一某个平台 setShape 没生效，ignoreMouseEvents(true) 保证不挡桌面
-      win.setIgnoreMouseEvents(list.length === 0, { forward: true })
-    } catch {
-      // setShape 不生效时退回到老办法：整窗不挡鼠标
-      try {
-        win.setIgnoreMouseEvents(true, { forward: true })
-      } catch {
-        /* 忽略 */
-      }
-    }
-  })
-  /** 关掉文件柜：确认后把所有还收着的文件放回原处，再关窗口 */
-  ipcMain.handle('files:closeAndRestore', async () => {
-    const pending = listFiles(null).length
-    if (pending > 0) {
-      const r = await dialog.showMessageBox({
-        type: 'question',
-        buttons: ['全部还原并关闭', '取消'],
-        defaultId: 0,
-        cancelId: 1,
-        title: '关闭文件柜',
-        message: `还有 ${pending} 个文件收在柜子里`,
-        detail: '关闭后会把它们全部放回原来的位置（桌面），文件不会丢失。'
-      })
-      if (r.response !== 0) return { restored: 0, failed: 0, cancelled: true }
-    }
-    const res = restoreAll()
-    fileWin?.close()
-    return { ...res, cancelled: false }
-  })
-  ipcMain.handle('files:open', (_e, id: string) => {
-    const f = listFiles().find((x) => x.id === id)
-    if (f) void shell.openPath(f.path)
-  })
-  ipcMain.handle('files:reveal', (_e, id: string) => {
-    const f = listFiles().find((x) => x.id === id)
-    if (f) shell.showItemInFolder(f.path)
-  })
-  ipcMain.handle('files:getDirs', () => getWatchDirs())
-  ipcMain.handle('files:setDirs', (_e, dirs: string[]) => setWatchDirs(dirs))
-  ipcMain.handle('files:getAutoScan', () => getAutoScan())
-  ipcMain.handle('files:setAutoScan', (_e, on: boolean) => setAutoScan(on))
-  ipcMain.handle('app:checkUpdate', () => checkForUpdate())
-  ipcMain.handle('app:downloadUpdate', async (_e, info) =>
-    downloadUpdate(info, (s) => mainWin?.webContents.send('update:progress', s))
-  )
-  ipcMain.handle('app:installUpdate', () => installUpdate())
-  ipcMain.handle('app:openReleasePage', () => openReleasePage())
-
   ipcMain.handle('app:hotkeyAvailable', (_e, acc: string) => {
     if (!acc || !isValidAccel(acc)) return { ok: false, reason: 'invalid' as const }
     if (registeredHotkeys.includes(acc)) return { ok: true as const }

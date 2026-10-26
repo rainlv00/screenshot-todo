@@ -19,6 +19,8 @@ interface DeskFile {
   mtime: number
   categoryId: string | null
   pinned: boolean
+  /** 文件夹显示 -- 而不是大小 */
+  isDir?: boolean
 }
 
 const COLOR: Record<string, string> = {
@@ -354,6 +356,7 @@ export default function DeskLayer() {
             key={cat.id}
             data-panel={cat.id}
             data-shape="1"
+            data-thin={alpha < 0.12 ? '1' : undefined}
             className={`desk-panel ${isCollapsed ? 'is-collapsed' : ''} ${
               dragOverCat === cat.id ? 'is-over' : ''
             } ${locked ? 'is-locked' : ''}`}
@@ -370,8 +373,7 @@ export default function DeskLayer() {
               borderColor: colorKey === 'none' ? undefined : `${color}55`,
               // 让标题栏里的图标和按钮跟着主题色走
               ['--pc' as string]: colorKey === 'none' ? 'rgba(255,255,255,0.62)' : color,
-              // 背景几乎全透时，边框稍微提亮一点，保证能看出面板范围
-              ['--thin' as string]: alpha < 0.12 ? '1' : '0',
+
             }}
             onDragOver={(e) => {
               e.preventDefault()
@@ -523,7 +525,9 @@ export default function DeskLayer() {
                         </span>
                       )}
                       <span className="dp-name">{f.name}</span>
-                      {viewOf(cat.id) === 'list' && <span className="dp-size">{fmtSize(f.size)}</span>}
+                      {viewOf(cat.id) === 'list' && (
+                        <span className="dp-size">{f.isDir ? '--' : fmtSize(f.size)}</span>
+                      )}
                     </button>
                   ))}
                 </div>
