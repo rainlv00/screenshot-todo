@@ -84,7 +84,37 @@ const PROJECT_ROOT = isDev
   ? path.join(__dirname, '..')
   : process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(REAL_EXE)
 /**
- * 数据目录固定在用户目录（%APPDATA%\云笺\data），和 exe 完全分离。
+ * A 方案：数据目录**固定**在改名前的路径 %APPDATA%\截图待办，
+ * 产品名改成「云笺」只影响界面，不碰已有数据。
+ * 这样从 1.0.x 升级过来零风险，不需要搬任何东西。
+ */
+function pinUserDataDir(): void {
+  try {
+    const root = app.getPath('appData')
+    const legacy = path.join(root, '截图待办')
+    const renamed = path.join(root, '云笺')
+    // 万一有人装过会迁移的 1.1.0，数据被搬到了「云笺」，这里搬回来
+    if (!fs.existsSync(legacy) && fs.existsSync(renamed)) {
+      try {
+        fs.renameSync(renamed, legacy)
+      } catch {
+        try {
+          fs.cpSync(renamed, legacy, { recursive: true })
+        } catch {
+          /* 搬不动就继续用旧路径，用户数据仍在新目录里，不会丢 */
+        }
+      }
+    }
+    fs.mkdirSync(legacy, { recursive: true })
+    app.setPath('userData', legacy)
+  } catch {
+    /* 失败就沿用默认 userData，功能不受影响 */
+  }
+}
+pinUserDataDir()
+
+/**
+ * 数据目录固定在用户目录（%APPDATA%\截图待办\data），和 exe 完全分离。
  * 这样以后换版本、重新解压、覆盖安装，都不会碰到已经截的图。
  */
 const DATA_DIR = process.env.WDY_DATA_DIR
@@ -99,28 +129,6 @@ const LEGACY_DATA_DIR = path.join(PROJECT_ROOT, 'data')
  * 只搬一次：新目录已经有 tasks.db 就不动。
  */
 function migrateLegacyData(): void {
-  try {
-    // 改名（截图待办 → 云笺）后 userData 路径跟着变，
-    // 老用户的整个数据目录要原样搬过来，否则升级后像是全部丢失
-    const appDataRoot = app.getPath('appData')
-    const oldNameDir = path.join(appDataRoot, '截图待办')
-    const newNameDir = app.getPath('userData')
-    if (oldNameDir !== newNameDir && fs.existsSync(oldNameDir) && !fs.existsSync(newNameDir)) {
-      try {
-        fs.renameSync(oldNameDir, newNameDir)
-      } catch {
-        // 旧版进程可能还占着文件，rename 会失败；退回复制，慢一点但可靠
-        try {
-          fs.cpSync(oldNameDir, newNameDir, { recursive: true })
-        } catch {
-          /* 实在不行就留着，用户数据不会丢 */
-        }
-      }
-    }
-  } catch {
-    /* 忽略 */
-  }
-
   try {
     if (path.normalize(LEGACY_DATA_DIR) === path.normalize(DATA_DIR)) return
     if (!fs.existsSync(path.join(LEGACY_DATA_DIR, 'tasks.db'))) return

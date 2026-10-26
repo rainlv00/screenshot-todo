@@ -56,18 +56,17 @@ function now(): number {
 
 /** 收纳根目录：软件目录下的「收纳」，不可写时退回用户数据目录 */
 export function storageRoot(): string {
-  // 默认放在用户数据目录。
-  // 绝不能用 exe 所在目录：程序目录会随版本升级、重装、打包被整体删掉，
-  // 收纳里的文件会跟着一起没（这个坑已经真丢过一次文件）。
-  const inDataDir = path.join(process.env.APPDATA || process.cwd(), '云笺', '收纳')
+  // 跟着 userData 走（A 方案里它被固定为 %APPDATA%\截图待办），
+  // 这样程序目录怎么升级都不会碰到用户文件，改名也不会导致找不到
   try {
-    fs.mkdirSync(inDataDir, { recursive: true })
-    fs.accessSync(inDataDir, fs.constants.W_OK)
-    return inDataDir
+    const base = app.getPath('userData')
+    const dir = path.join(base, '收纳')
+    fs.mkdirSync(dir, { recursive: true })
+    return dir
   } catch {
-    const fallback = path.join(process.env.LOCALAPPDATA || process.cwd(), '云笺', '收纳')
-    fs.mkdirSync(fallback, { recursive: true })
-    return fallback
+    const dir = path.join(process.env.APPDATA || process.cwd(), '截图待办', '收纳')
+    fs.mkdirSync(dir, { recursive: true })
+    return dir
   }
 }
 
