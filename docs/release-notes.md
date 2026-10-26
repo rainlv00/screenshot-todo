@@ -1,17 +1,25 @@
-## 云笺 1.1.0
+## 云笺 1.1.1
 
-**这个版本改了名字：截图待办 → 云笺。开发者：XIN。**
+**改名：截图待办 → 云笺，开发者 XIN。这次换了新图标。**
 
-### ⚠️ 从旧版升级必看
+### 数据不会动（重要）
 
-**装之前先手动卸载旧版「截图待办」**，因为改名后注册表键不同，安装程序找不到旧版自动卸载。
+这个版本采用**保守方案**：改名只影响界面，**数据目录仍然是 `%APPDATA%\截图待办`**。
 
-卸载位置：设置 → 应用 → 截图待办 → 卸载。或者 `D:\Programs\截图待办\Uninstall.exe`。
+从 1.0.x 直接升级过来，待办、分区记录、收纳的文件全部原地不动，不需要迁移。
 
-**数据会自动迁移**：第一次启动云笺时，会把 `%APPDATA%\截图待办` 整个搬到 `%APPDATA%\云笺`，
-待办、分区记录、收纳的文件都在。搬不动会退回复制，两种情况都不会丢数据。
+万一你装过 1.1.0（那个版本会迁移数据），这次启动会把数据**搬回** `%APPDATA%\截图待办`。
 
-### 国内下载地址（GitHub 打不开就用这个）
+### ⚠️ 装之前先卸载旧版
+
+改名后注册表键不同，安装程序找不到旧版自动卸载：
+
+```
+设置 → 应用 → 截图待办 → 卸载
+或 D:\Programs\截图待办\Uninstall.exe
+```
+
+### 国内下载地址
 
 ```
 https://ghfast.top/https://github.com/rainlv00/screenshot-todo/releases/latest/download/YunJian-Setup.exe
@@ -23,7 +31,7 @@ https://ghfast.top/https://github.com/rainlv00/screenshot-todo/releases/latest/d
 https://gh-proxy.com/https://github.com/rainlv00/screenshot-todo/releases/latest/download/YunJian-Setup.exe
 ```
 
-**注意文件名变了**：以前是 `ScreenshotTodo-Setup.exe`，现在是 `YunJian-Setup.exe`。
+**文件名是 `YunJian-Setup.exe`**，旧的 `ScreenshotTodo-Setup.exe` 链接已失效。
 
 ### 安装前必看
 
@@ -32,17 +40,23 @@ https://gh-proxy.com/https://github.com/rainlv00/screenshot-todo/releases/latest
 后缀就不是 exe 了，双击会弹「用什么打开」。
 → 重命名，把结尾的 `.1` 删掉。
 
-**2. 安装路径固定为 `D:\Programs\云笺`**
+**2. 安装路径 `D:\Programs\云笺`**
 
 没有 D 盘会自动装到用户目录。
 
-**3. 数据在 `%APPDATA%\云笺`**
+**3. 数据在 `%APPDATA%\截图待办`**
 
 不会随程序升级或卸载被删。
 
+### 新图标
+
+用的是那张蓝发角色飘在云上的插画，裁了人物居中部分，做了 16 到 256 全尺寸。
+
+小尺寸（16/20/24/32）单独做了锐化，缩到 16×16 时仍能看出个大概轮廓。
+
 ### 桌面分区
 
-按「分区」开关进入，桌面文件会被收进分区面板：
+按「分区」开关进入：
 
 - **拖文件进面板** → 文件搬进收纳目录，桌面图标消失
 - **拖文件出窗口** → 自动放回桌面
