@@ -4682,3 +4682,18 @@ html.preview-mode #root {
 .dp-lock-btn.is-on {
   opacity: 0.85;
 }
+
+/* 标题栏图标/按钮跟随分区主题色 */
+.desk-panel .dp-fold,
+.desk-panel .dp-count,
+.desk-panel .dp-act,
+.desk-panel .dp-view,
+.desk-panel .dp-lock-btn {
+  color: var(--pc, rgba(255, 255, 255, 0.62));
+}
+
+/* 列表视图里的大小数字也跟着走 */
+.desk-panel .dp-size {
+  color: var(--pc, rgba(255, 255, 255, 0.45));
+  opacity: 0.7;
+}

@@ -31,6 +31,13 @@ const COLOR: Record<string, string> = {
   none: '#7a8296'
 }
 
+/** #4a7dff → [74,125,255]，用来把主题色混进面板底色 */
+function hexRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
 const POS_KEY = 'desk-panel-pos'
 const STYLE_KEY = 'desk-panel-style'
 
@@ -355,8 +362,14 @@ export default function DeskLayer() {
               top: p.y,
               width,
               height,
-              background: `rgba(28, 32, 42, ${alpha})`,
-              borderColor: colorKey === 'none' ? undefined : `${color}55`
+              // 选了颜色就用它做底色（按透明度混合），没选才是默认深灰
+              background:
+                colorKey === 'none'
+                  ? `rgba(28, 32, 42, ${alpha})`
+                  : `rgba(${hexRgb(color).join(',')}, ${alpha})`,
+              borderColor: colorKey === 'none' ? undefined : `${color}55`,
+              // 让标题栏里的图标和按钮跟着主题色走
+              ['--pc' as string]: colorKey === 'none' ? 'rgba(255,255,255,0.62)' : color,
             }}
             onDragOver={(e) => {
               e.preventDefault()
