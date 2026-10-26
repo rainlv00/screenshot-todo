@@ -97,6 +97,14 @@ const api = {
     add: (paths: string[]): Promise<{ moved: { name: string; category: string }[]; failed: string[] }> =>
       ipcRenderer.invoke('movedesk:add', paths),
     restore: (id: string): Promise<boolean> => ipcRenderer.invoke('movedesk:restore', id),
+    dragOut: (id: string): void => ipcRenderer.send('movedesk:drag', id),
+    onRefreshed: (cb: () => void): (() => void) => {
+      const h = () => cb()
+      ipcRenderer.on('movedesk:refreshed', h)
+      return () => {
+        ipcRenderer.removeListener('movedesk:refreshed', h)
+      }
+    },
     restoreAllAndClose: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
       ipcRenderer.invoke('movedesk:restoreAllAndClose'),
     setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),

@@ -37,7 +37,8 @@ import {
   setSetting,
   reorderTasks,
   setPinned,
-  setColor
+  setColor,
+  getDb
 } from './db'
 import { saveImage, deleteImageFiles, sha1 } from './store'
 import { startDailyReminder, type ReminderCtl } from './reminder'
@@ -223,7 +224,8 @@ const iconCache = new Map<string, string>()
 
 async function getFileIconUrl(p: string, ext: string, isDir: boolean): Promise<string> {
   const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'heic']
-  const key = imgExts.includes(ext) ? `p:${p}` : `e:${isDir ? 'dir' : ext || 'file'}`
+  // 快捷方式按路径缓存（每个目标不同），其他按扩展名共用
+  const key = imgExts.includes(ext) || ext === 'lnk' ? `p:${p}` : `e:${isDir ? 'dir' : ext || 'file'}`
   const hit = iconCache.get(key)
   if (hit) return hit
 
@@ -234,8 +236,22 @@ async function getFileIconUrl(p: string, ext: string, isDir: boolean): Promise<s
       const thumb = await nativeImage.createThumbnailFromPath(p, { width: 96, height: 96 })
       if (!thumb.isEmpty()) url = thumb.toDataURL()
     }
+
+    // 快捷方式：Windows 只会给"白纸+箭头"，必须先读出目标再取目标的图标
+    if (!url && ext === 'lnk') {
+      try {
+        const detail = shell.readShortcutLink(p)
+        if (detail.target && fs.existsSync(detail.target)) {
+          const targetIco = await app.getFileIcon(detail.target, { size: 'large' })
+          if (!targetIco.isEmpty()) url = targetIco.toDataURL()
+        }
+      } catch {
+        /* 快捷方式坏了或目标没了，回落到默认图标 */
+      }
+    }
+
     if (!url) {
-      const ico = await app.getFileIcon(p, { size: 'normal' })
+      const ico = await app.getFileIcon(p, { size: 'large' })
       if (!ico.isEmpty()) url = ico.toDataURL()
     }
   } catch {
@@ -1153,6 +1169,45 @@ function registerIpc(): void {
   /** 把指定路径的文件搬进来（拖拽/单个收录用） */
   ipcMain.handle('movedesk:add', (_e, paths: string[]) => addFilesByPaths(paths))
   ipcMain.handle('movedesk:restore', (_e, id: string) => restoreOne(id))
+
+  /**
+   * 把分区里的文件拖出去（原生拖放）。
+   * Windows 上拖到桌面默认是「复制」，这里在拖拽发起后盯 10 秒桌面：
+   * 一旦出现同名同大小的文件，就把收纳里那份删掉，等效于「移动」。
+   */
+  ipcMain.on('movedesk:drag', async (e, id: string) => {
+    const item = listArchived().find((f) => f.id === id)
+    if (!item || !fs.existsSync(item.path)) return
+    try {
+      const ico = await app.getFileIcon(item.path, { size: 'normal' })
+      e.sender.startDrag({ file: item.path, icon: ico.isEmpty() ? nativeImage.createEmpty() : ico })
+    } catch {
+      return
+    }
+
+    // 拖拽是同步阻塞返回的，等它结束后再开始盯
+    const desk = app.getPath('desktop')
+    const name = path.basename(item.path)
+    const srcSize = fs.statSync(item.path).size
+    let ticks = 0
+    const timer = setInterval(() => {
+      ticks++
+      const landed = path.join(desk, name)
+      try {
+        if (fs.existsSync(landed) && fs.statSync(landed).size === srcSize) {
+          fs.unlinkSync(item.path)
+          getDb()
+            .prepare("UPDATE files SET state = 'restored', path = ? WHERE id = ?")
+            .run(landed, item.id)
+          clearInterval(timer)
+          moveWin?.webContents.send('movedesk:refreshed')
+        }
+      } catch {
+        /* 还没写完/被占用，下一轮再试 */
+      }
+      if (ticks >= 20) clearInterval(timer)
+    }, 500)
+  })
   ipcMain.handle('movedesk:restoreAll', () => restoreAll())
   ipcMain.handle('movedesk:restoreAllAndClose', () => {
     const res = restoreAll()
@@ -1368,6 +1423,31 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => showMain())
 
   app.whenReady().then(() => {
+    // 图标自测：把桌面快捷方式的图标导出来看看到底取到什么
+    if (process.argv.includes('--icon-selftest')) {
+      void (async () => {
+        const log: string[] = []
+        try {
+          const dir = app.getPath('desktop')
+          const lnks = fs.readdirSync(dir).filter((n) => n.toLowerCase().endsWith('.lnk'))
+          log.push('桌面 lnk 数量: ' + lnks.length)
+          for (const n of lnks.slice(0, 3)) {
+            const full = path.join(dir, n)
+            const ico = await app.getFileIcon(full, { size: 'large' })
+            log.push(`${n} isEmpty=${ico.isEmpty()} size=${ico.getSize().width}x${ico.getSize().height}`)
+            if (!ico.isEmpty()) {
+              fs.writeFileSync(path.join(APP_ROOT, `lnk-${lnks.indexOf(n)}.png`), ico.toPNG())
+            }
+          }
+        } catch (e) {
+          log.push('异常: ' + (e instanceof Error ? e.stack : String(e)))
+        }
+        fs.writeFileSync(path.join(APP_ROOT, 'icon-selftest.log'), log.join('\n'))
+        app.quit()
+      })()
+      return
+    }
+
     // 归档自测
     if (process.argv.includes('--archive-selftest')) {
       const log: string[] = []
