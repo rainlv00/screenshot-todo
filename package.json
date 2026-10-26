@@ -1,10 +1,10 @@
 {
-  "name": "screenshot-todo",
-  "productName": "截图待办",
-  "version": "1.0.4",
+  "name": "yunjian",
+  "productName": "云笺",
+  "version": "1.1.0",
   "private": true,
-  "description": "截图即待办：监听剪贴板，微信截图自动入库",
-  "author": "WDY",
+  "description": "云笺：截图即待办，桌面自归置",
+  "author": "XIN",
   "license": "MIT",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -39,8 +39,8 @@
     "react-dom": "^19.3.1"
   },
   "build": {
-    "appId": "com.wdy.screenshottodo",
-    "productName": "截图待办",
+    "appId": "com.xin.yunjian",
+    "productName": "云笺",
     "directories": {
       "output": "release"
     },

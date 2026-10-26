@@ -16,12 +16,12 @@ Unicode true
   !define OUTDIR "..\release"
 !endif
 
-!define APPNAME "截图待办"
+!define APPNAME "云笺"
 !define APPEXE "截图待办.exe"
 !define REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\截图待办"
 
 Name "${APPNAME}"
-OutFile "${OUTDIR}\ScreenshotTodo-Setup.exe"
+OutFile "${OUTDIR}\YunJian-Setup.exe"
 InstallDir "D:\Programs\${APPNAME}"
 ; 故意不写 InstallDirRegKey：它会盖过 InstallDir，从旧版本升级时把用户带回 C 盘
 RequestExecutionLevel user

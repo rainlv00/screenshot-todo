@@ -84,7 +84,7 @@ const PROJECT_ROOT = isDev
   ? path.join(__dirname, '..')
   : process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(REAL_EXE)
 /**
- * 数据目录固定在用户目录（%APPDATA%\截图待办\data），和 exe 完全分离。
+ * 数据目录固定在用户目录（%APPDATA%\云笺\data），和 exe 完全分离。
  * 这样以后换版本、重新解压、覆盖安装，都不会碰到已经截的图。
  */
 const DATA_DIR = process.env.WDY_DATA_DIR
@@ -99,6 +99,28 @@ const LEGACY_DATA_DIR = path.join(PROJECT_ROOT, 'data')
  * 只搬一次：新目录已经有 tasks.db 就不动。
  */
 function migrateLegacyData(): void {
+  try {
+    // 改名（截图待办 → 云笺）后 userData 路径跟着变，
+    // 老用户的整个数据目录要原样搬过来，否则升级后像是全部丢失
+    const appDataRoot = app.getPath('appData')
+    const oldNameDir = path.join(appDataRoot, '截图待办')
+    const newNameDir = app.getPath('userData')
+    if (oldNameDir !== newNameDir && fs.existsSync(oldNameDir) && !fs.existsSync(newNameDir)) {
+      try {
+        fs.renameSync(oldNameDir, newNameDir)
+      } catch {
+        // 旧版进程可能还占着文件，rename 会失败；退回复制，慢一点但可靠
+        try {
+          fs.cpSync(oldNameDir, newNameDir, { recursive: true })
+        } catch {
+          /* 实在不行就留着，用户数据不会丢 */
+        }
+      }
+    }
+  } catch {
+    /* 忽略 */
+  }
+
   try {
     if (path.normalize(LEGACY_DATA_DIR) === path.normalize(DATA_DIR)) return
     if (!fs.existsSync(path.join(LEGACY_DATA_DIR, 'tasks.db'))) return
@@ -918,7 +940,7 @@ function updateTray(): void {
   const paused = isPaused()
   const p = getPrefs()
   tray.setToolTip(
-    (paused ? '截图待办 · 已暂停收录' : count > 0 ? `截图待办 · ${count} 条待处理` : '截图待办 · 暂无待处理')
+    (paused ? '云笺 · 已暂停收录' : count > 0 ? `云笺 · ${count} 条待处理` : '云笺 · 暂无待处理')
   )
   const template: Electron.MenuItemConstructorOptions[] = [
     { label: count > 0 ? `${count} 条待处理` : '暂无待处理', enabled: false },
@@ -974,7 +996,7 @@ function updateTray(): void {
     { type: 'separator' },
     { label: '打开数据目录', click: () => { shell.openPath(DATA_DIR) } },
     {
-      label: '退出截图待办',
+      label: '退出云笺',
       click: () => {
         isQuitting = true
         app.quit()
@@ -1005,7 +1027,7 @@ function ensureStartMenuShortcut(): void {
   try {
     const dir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
     fs.mkdirSync(dir, { recursive: true })
-    const lnk = path.join(dir, '截图待办.lnk')
+    const lnk = path.join(dir, '云笺.lnk')
     if (fs.existsSync(lnk)) {
       // 程序被挪过位置就重建，避免快捷方式指向旧的 exe
       try {
@@ -1501,7 +1523,7 @@ if (!app.requestSingleInstanceLock()) {
   }).catch((e: unknown) => {
     // 这里抛错以前是静默退出，什么都看不到
     try {
-      dialog.showErrorBox('截图待办 启动失败', e instanceof Error ? e.message : String(e))
+      dialog.showErrorBox('云笺 启动失败', e instanceof Error ? e.message : String(e))
     } catch {
       /* 弹窗都弹不出来就算了 */
     }

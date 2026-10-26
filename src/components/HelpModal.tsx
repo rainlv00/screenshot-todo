@@ -78,7 +78,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
             没有待办时不打扰。时间可在设置里改。
           </p>
           <p className="warn">
-            如果收不到通知：检查开始菜单里是否有「截图待办」这个快捷方式，删掉通知就弹不出来了。
+            如果收不到通知：检查开始菜单里是否有「云笺」这个快捷方式，删掉通知就弹不出来了。
           </p>
 
           <h3>9. 数据在哪 / 怎么备份</h3>
@@ -98,10 +98,10 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <h3>11. 退出</h3>
           <p>
             点窗口的 × 只是收进托盘，程序还在后台跑（这样提醒和自动收录才有效）。
-            真正退出：托盘图标右键 → 退出截图待办。
+            真正退出：托盘图标右键 → 退出云笺。
           </p>
 
-          <div className="help-foot">截图待办 v{__APP_VERSION__} · 本地运行 · 不收集任何数据</div>
+          <div className="help-foot">云笺 v{__APP_VERSION__} · 本地运行 · 不收集任何数据</div>
         </div>
       </div>
     </div>

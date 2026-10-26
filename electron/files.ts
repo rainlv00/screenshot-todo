@@ -59,13 +59,13 @@ export function storageRoot(): string {
   // 默认放在用户数据目录。
   // 绝不能用 exe 所在目录：程序目录会随版本升级、重装、打包被整体删掉，
   // 收纳里的文件会跟着一起没（这个坑已经真丢过一次文件）。
-  const inDataDir = path.join(process.env.APPDATA || process.cwd(), '截图待办', '收纳')
+  const inDataDir = path.join(process.env.APPDATA || process.cwd(), '云笺', '收纳')
   try {
     fs.mkdirSync(inDataDir, { recursive: true })
     fs.accessSync(inDataDir, fs.constants.W_OK)
     return inDataDir
   } catch {
-    const fallback = path.join(process.env.LOCALAPPDATA || process.cwd(), '截图待办', '收纳')
+    const fallback = path.join(process.env.LOCALAPPDATA || process.cwd(), '云笺', '收纳')
     fs.mkdirSync(fallback, { recursive: true })
     return fallback
   }
@@ -692,7 +692,7 @@ function writeManifest(): void {
 /** 把桌面上的文件全部搬进收纳目录，并按扩展名分好类 */
 function archiveDebug(msg: string): void {
   try {
-    const p = path.join(process.env.APPDATA || process.cwd(), '截图待办', 'archive-debug.log')
+    const p = path.join(process.env.APPDATA || process.cwd(), '云笺', 'archive-debug.log')
     fs.appendFileSync(p, `${new Date().toISOString()} ${msg}\n`)
   } catch {
     /* 日志写不了就算了 */

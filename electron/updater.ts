@@ -159,7 +159,7 @@ export async function downloadUpdate(
   state = { status: 'downloading', percent: 0 }
   onProgress(state)
 
-  const dest = path.join(app.getPath('temp'), `截图待办-Setup-${info.version}.exe`)
+  const dest = path.join(app.getPath('temp'), `云笺-Setup-${info.version}.exe`)
   try {
     const res = await fetchWithMirrors(info.url)
     if (!res.ok || !res.body) throw new Error(`下载失败 HTTP ${res.status}`)
