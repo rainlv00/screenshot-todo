@@ -66,7 +66,26 @@ export default function DeskLayer() {
   const [cats, setCats] = useState<Cat[]>([])
   const [files, setFiles] = useState<DeskFile[]>([])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  // 每个分区的宫格/列表互不影响
+  const [views, setViews] = useState<Record<string, 'grid' | 'list'>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('movedesk-views') || '{}') as Record<string, 'grid' | 'list'>
+    } catch {
+      return {}
+    }
+  })
+  const viewOf = (id: string): 'grid' | 'list' => views[id] ?? 'grid'
+  const toggleView = (id: string): void => {
+    setViews((cur) => {
+      const next = { ...cur, [id]: cur[id] === 'list' ? ('grid' as const) : ('list' as const) }
+      try {
+        localStorage.setItem('movedesk-views', JSON.stringify(next))
+      } catch {
+        /* 存不了不影响使用 */
+      }
+      return next
+    })
+  }
   const [pos, setPos] = useState<Record<string, Pos>>(() => {
     try {
       return JSON.parse(localStorage.getItem(POS_KEY) || '{}')
@@ -444,7 +463,7 @@ export default function DeskLayer() {
             {!isCollapsed && (
               <>
                 <div
-                  className={`dp-body ${view === 'list' ? 'is-list' : ''}`}
+                  className={`dp-body ${viewOf(cat.id) === 'list' ? 'is-list' : ''}`}
                   style={height ? { maxHeight: undefined, flex: '1 1 auto' } : undefined}
                 >
                   {items.length === 0 && (
@@ -489,7 +508,7 @@ export default function DeskLayer() {
                         </span>
                       )}
                       <span className="dp-name">{f.name}</span>
-                      {view === 'list' && <span className="dp-size">{fmtSize(f.size)}</span>}
+                      {viewOf(cat.id) === 'list' && <span className="dp-size">{fmtSize(f.size)}</span>}
                     </button>
                   ))}
                 </div>
@@ -498,10 +517,10 @@ export default function DeskLayer() {
                   <span className="dp-hint">桌面 · {cat.name}</span>
                   <button
                     className="dp-view"
-                    onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+                    onClick={() => toggleView(cat.id)}
                     title="切换列表/宫格"
                   >
-                    {view === 'grid' ? '▤' : '▦'}
+                    {viewOf(cat.id) === 'grid' ? '▤' : '▦'}
                   </button>
                 </footer>
               </>

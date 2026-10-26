@@ -1237,8 +1237,6 @@ function registerIpc(): void {
       { label: '打开', click: () => void shell.openPath(filePath) },
       { label: '在文件夹中显示', click: () => shell.showItemInFolder(filePath) },
       { type: 'separator' },
-      { label: '属性', click: () => void openFileProperties(filePath) },
-      { type: 'separator' },
       {
         label: '放回桌面',
         click: () => {
