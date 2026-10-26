@@ -1,59 +1,68 @@
-## 1.0.4
+## 云笺 1.1.0
+
+**这个版本改了名字：截图待办 → 云笺。开发者：XIN。**
+
+### ⚠️ 从旧版升级必看
+
+**装之前先手动卸载旧版「截图待办」**，因为改名后注册表键不同，安装程序找不到旧版自动卸载。
+
+卸载位置：设置 → 应用 → 截图待办 → 卸载。或者 `D:\Programs\截图待办\Uninstall.exe`。
+
+**数据会自动迁移**：第一次启动云笺时，会把 `%APPDATA%\截图待办` 整个搬到 `%APPDATA%\云笺`，
+待办、分区记录、收纳的文件都在。搬不动会退回复制，两种情况都不会丢数据。
 
 ### 国内下载地址（GitHub 打不开就用这个）
 
 ```
-https://ghfast.top/https://github.com/rainlv00/screenshot-todo/releases/latest/download/ScreenshotTodo-Setup.exe
+https://ghfast.top/https://github.com/rainlv00/screenshot-todo/releases/latest/download/YunJian-Setup.exe
 ```
 
 备用：
 
 ```
-https://gh-proxy.com/https://github.com/rainlv00/screenshot-todo/releases/latest/download/ScreenshotTodo-Setup.exe
+https://gh-proxy.com/https://github.com/rainlv00/screenshot-todo/releases/latest/download/YunJian-Setup.exe
 ```
 
-整条复制到浏览器地址栏回车即可下载。
+**注意文件名变了**：以前是 `ScreenshotTodo-Setup.exe`，现在是 `YunJian-Setup.exe`。
 
 ### 安装前必看
 
-**1. 微信收到的安装包如果变成 `ScreenshotTodo-Setup.exe.1`**
+**1. 微信收到的安装包如果变成 `YunJian-Setup.exe.1`**
 
 后缀就不是 exe 了，双击会弹「用什么打开」。
-→ 重命名，把结尾的 `.1` 删掉，变回 `.exe` 即可安装。
+→ 重命名，把结尾的 `.1` 删掉。
 
-**2. 安装路径固定为 `D:\Programs\截图待办`**
+**2. 安装路径固定为 `D:\Programs\云笺`**
 
-没有 D 盘会自动装到用户目录。升级会先卸载旧版本再装，不会残留。
+没有 D 盘会自动装到用户目录。
 
-**3. 收纳目录在 `%APPDATA%\截图待办\收纳`**
+**3. 数据在 `%APPDATA%\云笺`**
 
 不会随程序升级或卸载被删。
 
-### 桌面分区（本次重点）
+### 桌面分区
 
 按「分区」开关进入，桌面文件会被收进分区面板：
 
 - **拖文件进面板** → 文件搬进收纳目录，桌面图标消失
 - **拖文件出窗口** → 自动放回桌面
-- **面板之间互拖** → 改分区归属，文件不动
+- **面板之间互拖** → 改分区归属
 - **支持文件夹** → 整个文件夹一起搬
 
 关闭分区开关，里面的文件会全部放回原位。
 
 ### 分区自定义
 
-- 拖动标题栏移动位置，拖边缘改大小
-- 双击分区名改名
+- 拖动标题栏移动、拖边缘改大小
+- **双击分区名改名**
 - 右上角锁图标：锁定后位置和大小都不变
-- `⋯` 里可改颜色、背景不透明度（0–100%）、新建/删除分区
+- `⋯` 里可改颜色（底色跟着变）、背景不透明度（0–100%）、新建/删除分区
 - 宫格 / 列表视图每个分区独立记忆
 
 ### 其他
 
 - 同名文件下次自动归到同一个分区
-- 收纳目录里会生成 `归档目录.json`，记录每个文件归到哪
-- 图片预览是独立窗口，可自由调整大小并记忆
+- 收纳目录里生成 `归档目录.json`，记录每个文件归到哪
+- 图片预览独立窗口，可自由调整大小并记忆
 - 提醒支持「每天」或「每周指定星期」
 - 更新下载走国内加速镜像
-
-数据在 `%APPDATA%\截图待办`，覆盖安装不会丢。
