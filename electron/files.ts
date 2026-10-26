@@ -54,14 +54,16 @@ function now(): number {
 
 /** 收纳根目录：软件目录下的「收纳」，不可写时退回用户数据目录 */
 export function storageRoot(): string {
-  const exeDir = path.dirname(process.execPath)
-  const candidate = path.join(exeDir, '收纳')
+  // 默认放在用户数据目录。
+  // 绝不能用 exe 所在目录：程序目录会随版本升级、重装、打包被整体删掉，
+  // 收纳里的文件会跟着一起没（这个坑已经真丢过一次文件）。
+  const inDataDir = path.join(process.env.APPDATA || process.cwd(), '截图待办', '收纳')
   try {
-    fs.mkdirSync(candidate, { recursive: true })
-    fs.accessSync(candidate, fs.constants.W_OK)
-    return candidate
+    fs.mkdirSync(inDataDir, { recursive: true })
+    fs.accessSync(inDataDir, fs.constants.W_OK)
+    return inDataDir
   } catch {
-    const fallback = path.join(process.env.APPDATA || process.cwd(), '截图待办', '收纳')
+    const fallback = path.join(process.env.LOCALAPPDATA || process.cwd(), '截图待办', '收纳')
     fs.mkdirSync(fallback, { recursive: true })
     return fallback
   }
@@ -695,15 +697,34 @@ export function archiveDesktop(): ArchiveResult {
   return { moved, failed, scanned: raw.length }
 }
 
-/** 分区2 当前收着的文件（state='inbox'） */
+/**
+ * 分区当前真正收着的文件。
+ * 文件如果在外面被删/被移走，记录会一直停在 inbox 变成"幽灵条目"，
+ * 界面上还显示着但点它毫无反应。这里顺手自愈：不存在就标成 restored + missing。
+ */
 export function listArchived(): FileItem[] {
-  return listFiles(null)
+  const db = getDb()
+  const alive: FileItem[] = []
+  for (const f of listFiles(null)) {
+    let exists = false
+    try {
+      exists = fs.existsSync(f.path)
+    } catch {
+      exists = false
+    }
+    if (exists) {
+      alive.push(f)
+    } else {
+      db.prepare("UPDATE files SET state = 'restored', missing = 1 WHERE id = ?").run(f.id)
+    }
+  }
+  return alive
 }
 
 /** 分区2 还有多少个文件没还原 */
 export function archivePendingCount(): number {
-  const r = getDb().prepare("SELECT COUNT(*) AS n FROM files WHERE state = 'inbox'").get() as { n: number }
-  return r.n
+  // 必须先走一次 listArchived 触发自愈，否则会把幽灵条目算进来
+  return listArchived().length
 }
 
 /** 批量把指定路径的文件搬进收纳目录（拖拽收录用） */
