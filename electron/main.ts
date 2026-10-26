@@ -71,6 +71,7 @@ import {
   archivePendingCount
 } from './files'
 import { getIconsHidden, setIconsHidden } from './deskIcons'
+import { showFileProperties } from './shellExt'
 
 const isDev = !app.isPackaged
 const APP_ROOT = app.getAppPath()
@@ -1217,6 +1218,7 @@ function registerIpc(): void {
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
   ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
+  ipcMain.handle('desk:properties', (_e, p: string) => showFileProperties(p))
   /**
    * 把窗口裁成"只有面板存在"的形状。
    * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟，

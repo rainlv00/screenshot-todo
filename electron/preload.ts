@@ -74,6 +74,7 @@ const api = {
       ipcRenderer.invoke('desk:icon', p, ext, isDir),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
+    properties: (p: string): Promise<boolean> => ipcRenderer.invoke('desk:properties', p),
     setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
     setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
       ipcRenderer.send('desk:shape', rects),

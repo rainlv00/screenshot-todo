@@ -100,6 +100,42 @@ function safeMove(src: string, dst: string): boolean {
   }
 }
 
+/**
+ * 判断一个文件该归到哪个分区。
+ * 优先用「同名文件上次归到哪」——用户挪过一次，下次同名/同名不同版本自动跟着走；
+ * 其次去掉扩展名和 (1)(2) 这类尾巴做前缀匹配；最后才按扩展名。
+ */
+function guessCategory(name: string, ext: string): string {
+  const db = getDb()
+  try {
+    // 完全同名
+    const same = db
+      .prepare(
+        'SELECT category_id FROM files WHERE name = ? AND category_id IS NOT NULL ORDER BY added_at DESC LIMIT 1'
+      )
+      .get(name) as { category_id: string } | undefined
+    if (same?.category_id) return same.category_id
+
+    // 去掉 扩展名 / (1) / 副本 等尾巴，比前缀
+    const base = name
+      .replace(/\.[^.]*$/, '')
+      .replace(/\s*\((\d+)\)$/, '')
+      .replace(/\s*-\s*副本$/, '')
+      .trim()
+    if (base.length >= 2) {
+      const like = db
+        .prepare(
+          "SELECT category_id FROM files WHERE name LIKE ? AND category_id IS NOT NULL ORDER BY added_at DESC LIMIT 1"
+        )
+        .get(`${base}%`) as { category_id: string } | undefined
+      if (like?.category_id) return like.category_id
+    }
+  } catch {
+    /* 查不到就按扩展名 */
+  }
+  return matchCategory(ext)
+}
+
 /** 分类名转成安全的目录名 */
 function safeDirName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, '_').trim() || '其他'
@@ -261,7 +297,7 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
     return rowToFile(row)
   }
 
-  const cat = categoryId ?? matchCategory(ext)
+  const cat = categoryId ?? guessCategory(name, ext)
   const catRow = db.prepare('SELECT name FROM file_categories WHERE id = ?').get(cat) as
     | { name: string }
     | undefined
@@ -578,6 +614,41 @@ export interface ArchiveResult {
   scanned: number
 }
 
+/**
+ * 生成一份可读的归档目录清单（收纳目录/归档目录.json）。
+ * 记录「文件名 → 分区」，用户能直接打开看，也能手动改。
+ * 归档时以数据库里的历史为准，这个文件是给人看的快照。
+ */
+function writeManifest(): void {
+  try {
+    const db = getDb()
+    const cats = new Map<string, string>()
+    for (const c of db.prepare('SELECT id, name FROM file_categories').all() as any[]) {
+      cats.set(c.id, c.name)
+    }
+    const rows = db
+      .prepare('SELECT name, category_id FROM files WHERE category_id IS NOT NULL ORDER BY name')
+      .all() as { name: string; category_id: string }[]
+
+    const byCat: Record<string, string[]> = {}
+    for (const r of rows) {
+      const cn = cats.get(r.category_id) ?? '其他'
+      byCat[cn] = byCat[cn] ?? []
+      if (!byCat[cn].includes(r.name)) byCat[cn].push(r.name)
+    }
+
+    const payload = {
+      说明: '这是上一次归档的目录快照。同名文件下次会自动归到同一个分区。',
+      更新时间: new Date().toLocaleString('zh-CN'),
+      分项: byCat
+    }
+    const target = path.join(storageRoot(), '归档目录.json')
+    fs.writeFileSync(target, JSON.stringify(payload, null, 2), 'utf-8')
+  } catch {
+    /* 写不了清单不影响归档 */
+  }
+}
+
 /** 把桌面上的文件全部搬进收纳目录，并按扩展名分好类 */
 function archiveDebug(msg: string): void {
   try {
@@ -620,6 +691,7 @@ export function archiveDesktop(): ArchiveResult {
     }
   }
 
+  writeManifest()
   return { moved, failed, scanned: raw.length }
 }
 
@@ -656,5 +728,6 @@ export function addFilesByPaths(paths: string[]): {
       failed.push(path.basename(p))
     }
   }
+  writeManifest()
   return { moved, failed }
 }

@@ -403,17 +403,12 @@ export default function DeskLayer() {
                       className="dp-item"
                       draggable
                       onDragStart={(e) => {
-                        // 按住 Alt 拖 = 原生拖到桌面/资源管理器；直接拖 = 面板之间改分类
-                        if (e.altKey) {
-                          e.preventDefault()
-                          window.api.moveDesk.dragOut(f.id)
-                          return
-                        }
-                        dragFileId.current = f.id
-                        e.dataTransfer.effectAllowed = 'move'
-                        e.dataTransfer.setData('text/plain', f.id)
+                        // 直接拖就是原生拖出：拖到桌面/资源管理器都行。
+                        // 拖回面板内的场景改成右键「移动到」处理，不再靠修饰键区分。
+                        e.preventDefault()
+                        window.api.moveDesk.dragOut(f.id)
                       }}
-                      title={`${f.name}\n${fmtSize(f.size)}\n双击打开 · 拖到别的分区改分类 · 按住 Alt 拖到桌面`}
+                      title={`${f.name}\n${fmtSize(f.size)}\n双击打开 · 拖出去可以放回桌面或文件夹`}
                       onDoubleClick={() => void window.api.desk.open(f.path)}
                       onContextMenu={(e) => {
                         e.preventDefault()
@@ -563,6 +558,14 @@ export default function DeskLayer() {
               }}
             >
               在文件夹中显示
+            </button>
+            <button
+              onClick={() => {
+                void window.api.desk.properties(files.find((f) => f.id === fileMenu.id)?.path || '')
+                setFileMenu(null)
+              }}
+            >
+              属性
             </button>
             <button
               onClick={async () => {
