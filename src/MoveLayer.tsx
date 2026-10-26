@@ -345,7 +345,7 @@ export default function DeskLayer() {
         const color = COLOR[colorKey] ?? COLOR.none
         const width = st.width ?? 226
         const height = st.height
-        const alpha = st.alpha ?? 0.72
+        const alpha = st.alpha ?? 0.34
         const locked = !!st.locked
         const isCollapsed = collapsed.has(cat.id)
         const p = pos[cat.id] ?? { x: 24 + (idx % 4) * (width + 22), y: 24 + Math.floor(idx / 4) * 300 }
@@ -370,6 +370,8 @@ export default function DeskLayer() {
               borderColor: colorKey === 'none' ? undefined : `${color}55`,
               // 让标题栏里的图标和按钮跟着主题色走
               ['--pc' as string]: colorKey === 'none' ? 'rgba(255,255,255,0.62)' : color,
+              // 背景几乎全透时，边框稍微提亮一点，保证能看出面板范围
+              ['--thin' as string]: alpha < 0.12 ? '1' : '0',
             }}
             onDragOver={(e) => {
               e.preventDefault()
@@ -709,9 +711,10 @@ export default function DeskLayer() {
             <label className="dm-label">背景不透明度</label>
             <input
               type="range"
-              min={20}
+              min={0}
               max={100}
-              value={Math.round((style[menuCat]?.alpha ?? 0.72) * 100)}
+              step={1}
+              value={Math.round((style[menuCat]?.alpha ?? 0.34) * 100)}
               onChange={(e) => patchStyle(menuCat, { alpha: Number(e.target.value) / 100 })}
               className="dm-range"
             />
