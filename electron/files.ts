@@ -318,7 +318,9 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
   } catch {
     return null
   }
-  if (!st.isFile()) return null
+  // 文件夹也要能收进来（拖整个文件夹是最常见的操作）
+  if (!st.isFile() && !st.isDirectory()) return null
+  const isDir = st.isDirectory()
 
   const name = path.basename(absPath)
   const ext = path.extname(name).replace(/^\./, '').toLowerCase()
@@ -332,7 +334,8 @@ export function addFileByPath(absPath: string, categoryId?: string): FileItem | 
     return rowToFile(row)
   }
 
-  const cat = categoryId ?? guessCategory(name, ext)
+  // 文件夹没有扩展名，直接归到「其他」，不参与同名/前缀匹配
+  const cat = categoryId ?? (isDir ? 'other' : guessCategory(name, ext))
   const catRow = db.prepare('SELECT name FROM file_categories WHERE id = ?').get(cat) as
     | { name: string }
     | undefined

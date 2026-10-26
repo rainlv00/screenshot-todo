@@ -226,8 +226,15 @@ const iconCache = new Map<string, string>()
 
 async function getFileIconUrl(p: string, ext: string, isDir: boolean): Promise<string> {
   const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'heic']
+  // 以磁盘实际类型为准：拖进来的文件夹前端分不清，这里自己判断一次
+  let dirFlag = isDir
+  try {
+    dirFlag = fs.statSync(p).isDirectory()
+  } catch {
+    /* 拿不到就沿用传入值 */
+  }
   // 快捷方式按路径缓存（每个目标不同），其他按扩展名共用
-  const key = imgExts.includes(ext) || ext === 'lnk' ? `p:${p}` : `e:${isDir ? 'dir' : ext || 'file'}`
+  const key = imgExts.includes(ext) || ext === 'lnk' ? `p:${p}` : `e:${dirFlag ? 'dir' : ext || 'file'}`
   const hit = iconCache.get(key)
   if (hit) return hit
 
