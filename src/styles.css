@@ -4616,3 +4616,27 @@ html.preview-mode #root {
   background: rgba(74, 125, 255, 0.25);
   color: #fff;
 }
+
+/* 分区设置里的删除按钮 */
+.dm-newcat.dm-danger {
+  color: #ff8b8e;
+  border-color: rgba(229, 72, 77, 0.45);
+}
+
+.dm-newcat.dm-danger:hover {
+  background: rgba(229, 72, 77, 0.2);
+  border-color: rgba(229, 72, 77, 0.85);
+  color: #ffb3b5;
+}
+
+/* 空分区提示 */
+.dp-empty-hint {
+  grid-column: 1 / -1;
+  padding: 18px 6px;
+  text-align: center;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.35);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 9px;
+  margin: 2px;
+}

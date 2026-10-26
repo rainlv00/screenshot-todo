@@ -206,6 +206,39 @@ export function addCategory(name: string, exts: string[], color = 'none'): FileC
   }
 }
 
+/**
+ * 删除分区。里面的文件先全部放回桌面，再删分类记录。
+ * 内置分区不允许删（那是兜底用的）。
+ */
+export function deleteCategoryWithRestore(id: string): { restored: number; failed: number; ok: boolean } {
+  const db = getDb()
+  const row = db.prepare('SELECT builtin FROM file_categories WHERE id = ?').get(id) as
+    | { builtin: number }
+    | undefined
+  if (!row) return { restored: 0, failed: 0, ok: false }
+  if (row.builtin) return { restored: 0, failed: 0, ok: false }
+
+  let restored = 0
+  let failed = 0
+  const items = db.prepare("SELECT id FROM files WHERE category_id = ? AND state = 'inbox'").all(id) as {
+    id: string
+  }[]
+  for (const it of items) {
+    if (restoreOne(it.id)) restored++
+    else failed++
+  }
+
+  // 该分类下剩下的记录（已还原或本来就失效的）改挂到"其他"，避免悬空
+  const other = db.prepare("SELECT id FROM file_categories WHERE id = 'other'").get() as
+    | { id: string }
+    | undefined
+  if (other) {
+    db.prepare('UPDATE files SET category_id = ? WHERE category_id = ?').run(other.id, id)
+  }
+  db.prepare('DELETE FROM file_categories WHERE id = ?').run(id)
+  return { restored, failed, ok: true }
+}
+
 export function renameCategory(id: string, name: string): void {
   getDb().prepare('UPDATE file_categories SET name = ? WHERE id = ?').run(name, id)
 }

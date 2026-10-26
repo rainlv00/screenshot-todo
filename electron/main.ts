@@ -67,6 +67,7 @@ import {
   storageRoot,
   archiveDesktop,
   addFilesByPaths,
+  deleteCategoryWithRestore,
   listArchived,
   archivePendingCount
 } from './files'
@@ -1187,6 +1188,30 @@ function registerIpc(): void {
     return res
   })
   ipcMain.handle('movedesk:files', () => listArchived())
+  ipcMain.handle('movedesk:deleteCategory', async (e, id: string) => {
+    // 确认框必须在主进程用原生对话框弹：
+    // 渲染层的 confirm 会被窗口形状裁掉，点不到，反而卡死
+    const info = listCategories().find((c) => c.id === id)
+    if (!info) return { restored: 0, failed: 0, ok: false, cancelled: true }
+    if (info.builtin) return { restored: 0, failed: 0, ok: false, cancelled: true }
+
+    const count = listArchived().filter((f) => f.categoryId === id).length
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const r = await dialog.showMessageBox(win ?? undefined!, {
+      type: 'warning',
+      buttons: ['删除分区', '取消'],
+      defaultId: 0,
+      cancelId: 1,
+      title: '删除分区',
+      message: `删除「${info.name}」？`,
+      detail:
+        count > 0
+          ? `里面 ${count} 个文件会先全部放回桌面，然后再删除分区。文件不会丢。`
+          : '这个分区是空的，直接删除。'
+    })
+    if (r.response !== 0) return { restored: 0, failed: 0, ok: false, cancelled: true }
+    return { ...deleteCategoryWithRestore(id), cancelled: false }
+  })
   ipcMain.handle('movedesk:pending', () => archivePendingCount())
   ipcMain.handle('movedesk:archive', () => archiveDesktop())
   /** 把指定路径的文件搬进来（拖拽/单个收录用） */

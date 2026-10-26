@@ -101,6 +101,8 @@ const api = {
     dragOut: (id: string): void => ipcRenderer.send('movedesk:drag', id),
     fileMenu: (id: string, filePath: string): Promise<void> =>
       ipcRenderer.invoke('movedesk:fileMenu', id, filePath),
+    deleteCategory: (id: string): Promise<{ restored: number; failed: number; ok: boolean }> =>
+      ipcRenderer.invoke('movedesk:deleteCategory', id),
     onRefreshed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('movedesk:refreshed', h)

@@ -14,21 +14,23 @@ function log(msg: string): void {
 /**
  * 弹出 Windows 原生的「文件属性」对话框。
  *
- * 踩过的坑：
- * 1. **不能加 -WindowStyle Hidden** —— 宿主窗口隐藏后，它弹出的属性框也一起不显示，
- *    表现出来就是"点了没反应"。
- * 2. 必须把路径拆成「目录 + 文件名」再 Namespace(目录).ParseName(文件名)，
- *    直接 ParseName(完整路径) 不可靠。
- * 3. 必须加 -STA：Shell.Application 的 InvokeVerb 在 MTA 线程里会静默失败。
- * 4. 属性框是模态的，用户关掉之前宿主进程不退出，回调会等很久。
+ * 踩过的坑（按踩的顺序）：
+ * 1. 不能加 `-WindowStyle Hidden` —— 宿主窗口被隐藏后，它弹出的属性框一起不显示。
+ * 2. 必须拆成「目录 + 文件名」再 `Namespace(目录).ParseName(文件名)`，
+ *    `ParseName(完整路径)` 不可靠。
+ * 3. **不能用 Split-Path 拆路径** —— `-LiteralPath` 配 `-Parent` 在某些输入下会报
+ *    `AmbiguousParameterSet`，导致整条命令挂掉、属性框根本不弹。改用 .NET 的
+ *    `[System.IO.Path]::GetDirectoryName / GetFileName`，纯字符串处理，不会解析歧义。
+ * 4. 必须加 `-STA`：`Shell.Application` 的 `InvokeVerb` 在 MTA 线程里静默失败。
+ * 5. 属性框是模态的，用户关掉之前宿主进程不退出，回调会等很久。
  */
 export function showFileProperties(filePath: string): Promise<boolean> {
   return new Promise((resolve) => {
     const safe = filePath.replace(/'/g, "''")
     const script = [
       `$p = '${safe}'`,
-      '$dir = Split-Path -LiteralPath $p -Parent',
-      '$leaf = Split-Path -LiteralPath $p -Leaf',
+      '$dir = [System.IO.Path]::GetDirectoryName($p)',
+      '$leaf = [System.IO.Path]::GetFileName($p)',
       '$sh = New-Object -ComObject Shell.Application',
       '$folder = $sh.Namespace($dir)',
       'if ($folder -eq $null) { Write-Output "NOFOLDER"; exit 2 }',

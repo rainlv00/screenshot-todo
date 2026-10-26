@@ -285,7 +285,9 @@ export default function DeskLayer() {
     () =>
       cats
         .map((c) => ({ cat: c, items: files.filter((f) => f.categoryId === c.id) }))
-        .filter((g) => g.items.length > 0),
+        // 内置分区空着就不显示（减少噪音），但用户自己新建的分区必须显示，
+        // 否则"先建分区、再手动归档"这个流程走不通——建完就看不见了
+        .filter((g) => g.items.length > 0 || !g.cat.builtin),
     [cats, files]
   )
 
@@ -396,7 +398,10 @@ export default function DeskLayer() {
                   className={`dp-body ${view === 'list' ? 'is-list' : ''}`}
                   style={height ? { maxHeight: undefined, flex: '1 1 auto' } : undefined}
                 >
-                  {items.map((f) => (
+                  {items.length === 0 && (
+                <div className="dp-empty-hint">把文件拖进来</div>
+              )}
+              {items.map((f) => (
                     <button
                       key={f.id}
                       className="dp-item"
@@ -563,6 +568,35 @@ export default function DeskLayer() {
             >
               ✎ 重命名分区
             </button>
+            {!cats.find((x) => x.id === menuCat)?.builtin && (
+              <button
+                className="dm-newcat dm-danger"
+                onClick={async () => {
+                  const id = menuCat
+                  setMenuCat(null)
+                  if (!id) return
+                  // 确认框由主进程用原生对话框弹（渲染层 confirm 会被形状裁掉点不到）
+                  const r = (await window.api.moveDesk.deleteCategory(id)) as {
+                    restored: number
+                    failed: number
+                    ok: boolean
+                    cancelled?: boolean
+                  }
+                  if (r.cancelled) return
+                  await load()
+                  setTip(
+                    r.ok
+                      ? r.restored > 0
+                        ? `分区已删除，${r.restored} 个文件已放回桌面`
+                        : '分区已删除'
+                      : '删除失败'
+                  )
+                  window.setTimeout(() => setTip(''), 1800)
+                }}
+              >
+                ✕ 删除分区
+              </button>
+            )}
             <label className="dm-label">颜色</label>
             <div className="dm-swatches">
               {SWATCHES.map((c) => (
