@@ -5,7 +5,9 @@ const path = require('node:path')
 const { execFileSync, spawnSync } = require('node:child_process')
 
 const ROOT = path.resolve(__dirname, '..')
-const OUT_NAME = '截图待办-win32-x64'
+const pkgMeta = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'))
+const PRODUCT_NAME = pkgMeta.productName || '云笺'
+const OUT_NAME = `${PRODUCT_NAME}-win32-x64`
 const RELEASE = path.join(ROOT, 'release')
 const OUT = path.join(RELEASE, OUT_NAME)
 const APP = path.join(OUT, 'resources', 'app')
@@ -74,7 +76,7 @@ fs.writeFileSync(
   JSON.stringify(
     {
       name: 'screenshot-todo',
-      productName: '截图待办',
+      productName: PRODUCT_NAME,
       version: require(path.join(ROOT, 'package.json')).version,
       description: '截图即待办：监听剪贴板，微信截图自动入库',
       main: 'dist-electron/main.js'
@@ -85,7 +87,7 @@ fs.writeFileSync(
 )
 
 step('改名 + 写图标')
-const exe = path.join(OUT, '截图待办.exe')
+const exe = path.join(OUT, `${PRODUCT_NAME}.exe`)
 const oldExe = path.join(OUT, 'electron.exe')
 
 // Windows 上刚复制完的 exe 常被杀毒/索引器短暂占用，rename 会 EPERM，需要重试
@@ -105,7 +107,7 @@ function renameRetry(src, dest) {
 if (fs.existsSync(oldExe)) {
   if (fs.existsSync(exe)) fs.unlinkSync(exe)
   renameRetry(oldExe, exe)
-  step('已改名为 截图待办.exe')
+  step(`已改名为 ${PRODUCT_NAME}.exe`)
 }
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
@@ -120,10 +122,10 @@ if (fs.existsSync(rcedit) && fs.existsSync(exe)) {
       '--set-icon', path.join(ROOT, 'build', 'icon.ico'),
       '--set-file-version', ver + '.0',
       '--set-product-version', ver,
-      '--set-version-string', 'ProductName', '截图待办',
-      '--set-version-string', 'FileDescription', '截图待办',
+      '--set-version-string', 'ProductName', PRODUCT_NAME,
+      '--set-version-string', 'FileDescription', PRODUCT_NAME,
       '--set-version-string', 'CompanyName', 'WDY',
-      '--set-version-string', 'OriginalFilename', '截图待办.exe',
+      '--set-version-string', 'OriginalFilename', `${PRODUCT_NAME}.exe`,
       '--set-version-string', 'FileVersion', ver,
       '--set-version-string', 'ProductVersion', ver
     ],

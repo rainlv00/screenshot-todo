@@ -14,17 +14,18 @@ fi
 VER=$(node -p "require('./package.json').version")
 echo "版本: $VER"
 
-if [ ! -f "release/截图待办-win32-x64/截图待办.exe" ]; then
-  echo "缺少 release/截图待办-win32-x64，先跑 node scripts/pack.js"
+PRODUCT_NAME=$(node -e "console.log(require('./package.json').productName)")
+if [ ! -f "release/${PRODUCT_NAME}-win32-x64/${PRODUCT_NAME}.exe" ]; then
+  echo "缺少 release/${PRODUCT_NAME}-win32-x64，先跑 node scripts/pack.js"
   exit 1
 fi
 
 cd scripts
 MSYS_NO_PATHCONV=1 "$MAKENSIS" -INPUTCHARSET UTF8 \
   "/DVERSION=$VER" \
-  "/DSRCDIR=..\\release\\截图待办-win32-x64" \
+  "/DSRCDIR=..\\release\\${PRODUCT_NAME}-win32-x64"  \
   "/DOUTDIR=..\\release" \
   installer.nsi
 
 cd ..
-ls -la "release/ScreenshotTodo-Setup.exe" | awk '{printf "安装包: %.1f MB\n", $5/1048576}'
+ls -la "release/YunJian-Setup.exe" | awk '{printf "安装包: %.1f MB\n", $5/1048576}'

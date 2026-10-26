@@ -1,5 +1,5 @@
-; 截图待办 安装器脚本
-; 编译：makensis /DVERSION=1.0.0 /DSRCDIR=..\release\截图待办-win32-x64 installer.nsi
+; 云笺 安装器脚本
+; 编译：由 build-installer.sh 驱动，SRCDIR 会自动传入
 ; 装到用户目录，不需要管理员权限；数据在 %APPDATA% 不受影响
 
 Unicode true
@@ -10,15 +10,15 @@ Unicode true
   !define VERSION "1.0.0"
 !endif
 !ifndef SRCDIR
-  !define SRCDIR "..\release\截图待办-win32-x64"
+  !define SRCDIR "..\release\云笺-win32-x64"
 !endif
 !ifndef OUTDIR
   !define OUTDIR "..\release"
 !endif
 
 !define APPNAME "云笺"
-!define APPEXE "截图待办.exe"
-!define REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\截图待办"
+!define APPEXE "${APPNAME}.exe"
+!define REGKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
 
 Name "${APPNAME}"
 OutFile "${OUTDIR}\YunJian-Setup.exe"
@@ -106,7 +106,7 @@ Section "Uninstall"
   Delete "$DESKTOP\${APPNAME}.lnk"
   RMDir /r "$SMPROGRAMS\${APPNAME}"
 
-  ; 只删程序目录，用户数据在 %APPDATA%\截图待办，保留
+  ; 只删程序目录，用户数据在 %APPDATA%\云笺，保留
   RMDir /r "$INSTDIR"
 
   DeleteRegKey HKCU "${REGKEY}"
