@@ -1218,7 +1218,29 @@ function registerIpc(): void {
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
   ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
-  ipcMain.handle('desk:properties', (_e, p: string) => showFileProperties(p))
+  ipcMain.handle('desk:properties', async (_e, p: string) => {
+    // 属性框是系统模态窗口，会被我们的全屏透明层挡住（看起来就像卡死）。
+    // 先把分区层收起来，等属性框关掉（execFile 回调）再恢复。
+    const wasVisible = !!moveWin && !moveWin.isDestroyed() && moveWin.isVisible()
+    try {
+      moveWin?.hide()
+    } catch {
+      /* 忽略 */
+    }
+    try {
+      await showFileProperties(p)
+    } finally {
+      if (wasVisible && moveWin && !moveWin.isDestroyed()) {
+        try {
+          moveWin.showInactive()
+          moveWin.setOpacity(1)
+        } catch {
+          /* 窗口可能已经关了 */
+        }
+      }
+    }
+    return true
+  })
   /**
    * 把窗口裁成"只有面板存在"的形状。
    * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟，
