@@ -14,29 +14,22 @@ function log(msg: string): void {
 /**
  * 弹出 Windows 原生的「文件属性」对话框。
  *
- * 踩过的坑（按踩的顺序）：
- * 1. 不能加 `-WindowStyle Hidden` —— 宿主窗口被隐藏后，它弹出的属性框一起不显示。
- * 2. 必须拆成「目录 + 文件名」再 `Namespace(目录).ParseName(文件名)`，
- *    `ParseName(完整路径)` 不可靠。
- * 3. **不能用 Split-Path 拆路径** —— `-LiteralPath` 配 `-Parent` 在某些输入下会报
- *    `AmbiguousParameterSet`，导致整条命令挂掉、属性框根本不弹。改用 .NET 的
- *    `[System.IO.Path]::GetDirectoryName / GetFileName`，纯字符串处理，不会解析歧义。
- * 4. 必须加 `-STA`：`Shell.Application` 的 `InvokeVerb` 在 MTA 线程里静默失败。
- * 5. 属性框是模态的，用户关掉之前宿主进程不退出，回调会等很久。
+ * 走的是 shell 的 Properties 动词（`Start-Process -Verb Properties`），
+ * 比 `Shell.Application.InvokeVerb` 那套稳：
+ * - InvokeVerb 在隐藏宿主里弹出来的框不会拿到前台焦点，表现为"点了没反应"
+ * - InvokeVerb 在 MTA 线程里还会静默失败，必须额外加 -STA
+ * - 拆路径不能用 Split-Path（会撞 AmbiguousParameterSet），改用 .NET 的 Path 方法
+ *
+ * `-Wait` 让进程一直活到用户关掉属性框，调用方据此判断"什么时候恢复自己的透明层"。
  */
 export function showFileProperties(filePath: string): Promise<boolean> {
   return new Promise((resolve) => {
     const safe = filePath.replace(/'/g, "''")
+    // 路径存在性先在 PowerShell 侧确认，避免拿不存在的路径去调动词
     const script = [
       `$p = '${safe}'`,
-      '$dir = [System.IO.Path]::GetDirectoryName($p)',
-      '$leaf = [System.IO.Path]::GetFileName($p)',
-      '$sh = New-Object -ComObject Shell.Application',
-      '$folder = $sh.Namespace($dir)',
-      'if ($folder -eq $null) { Write-Output "NOFOLDER"; exit 2 }',
-      '$item = $folder.ParseName($leaf)',
-      'if ($item -eq $null) { Write-Output "NOITEM"; exit 3 }',
-      '$item.InvokeVerb("properties")',
+      'if (-not (Test-Path -LiteralPath $p)) { Write-Output "MISSING"; exit 4 }',
+      'Start-Process -FilePath $p -Verb Properties -Wait',
       'Write-Output "OK"'
     ].join('; ')
 
@@ -47,9 +40,9 @@ export function showFileProperties(filePath: string): Promise<boolean> {
       resolve(v)
     }
     const timer = setTimeout(() => {
-      log('超时 45s 未返回')
+      log('超时 120s 未返回')
       done(false)
-    }, 45_000)
+    }, 120_000)
 
     log(`开始: ${filePath}`)
     execFile(
@@ -59,7 +52,7 @@ export function showFileProperties(filePath: string): Promise<boolean> {
       (err, stdout, stderr) => {
         clearTimeout(timer)
         log(`结束: err=${err ? err.message : 'none'} out=${String(stdout).trim()} errOut=${String(stderr).trim()}`)
-        done(!err)
+        done(!err && String(stdout).includes('OK'))
       }
     )
   })

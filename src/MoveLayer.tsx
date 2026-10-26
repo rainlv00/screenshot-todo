@@ -80,6 +80,7 @@ export default function DeskLayer() {
   const [menuCat, setMenuCat] = useState<string | null>(null)
   const [renameOpen, setRenameOpen] = useState<{ id: string; name: string } | null>(null)
   const [renameVal, setRenameVal] = useState('')
+  const [editingName, setEditingName] = useState<string | null>(null)
   const [tip, setTip] = useState('')
   const [icons, setIcons] = useState<Record<string, string>>({})
   const iconRef = useRef<Record<string, string>>({})
@@ -273,6 +274,17 @@ export default function DeskLayer() {
     })
   }
 
+  /** 标题栏内联改名（双击名称或编辑框回车） */
+  async function commitInlineRename(id: string): Promise<void> {
+    const name = renameVal.trim()
+    setEditingName(null)
+    if (!name) return
+    const cur = cats.find((c) => c.id === id)
+    if (cur && cur.name === name) return
+    await window.api.files.renameCategory(id, name)
+    await load()
+  }
+
   async function doRename() {
     const name = renameVal.trim()
     if (!renameOpen || !name) return
@@ -384,10 +396,47 @@ export default function DeskLayer() {
               <span className="dp-icon" style={{ color }}>
                 ▣
               </span>
-              <span className="dp-title">{cat.name}</span>
+              {editingName === cat.id ? (
+                <input
+                  autoFocus
+                  className="dp-name-input"
+                  value={renameVal}
+                  onChange={(e) => setRenameVal(e.target.value)}
+                  onBlur={() => void commitInlineRename(cat.id)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void commitInlineRename(cat.id)
+                    if (e.key === 'Escape') setEditingName(null)
+                  }}
+                />
+              ) : (
+                <span
+                  className="dp-title"
+                  title="双击改名"
+                  onDoubleClick={(e) => {
+                    e.stopPropagation()
+                    setRenameVal(cat.name)
+                    setEditingName(cat.id)
+                  }}
+                >
+                  {cat.name}
+                </span>
+              )}
               <span className="dp-count">{items.length}</span>
-              {locked && <span className="dp-lock" title="已锁定，位置和大小不会变">🔒</span>}
-              <button className="dp-act" title="分区设置" onClick={() => setMenuCat(menuCat === cat.id ? null : cat.id)}>
+              <button
+                className={`dp-lock-btn ${locked ? 'is-on' : ''}`}
+                title={locked ? '已锁定，点一下解锁' : '锁定位置和大小'}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => patchStyle(cat.id, { locked: !locked })}
+              >
+                {locked ? '🔒' : '🔓'}
+              </button>
+              <button
+                className="dp-act"
+                title="分区设置"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setMenuCat(menuCat === cat.id ? null : cat.id)}
+              >
                 ⋯
               </button>
             </header>
