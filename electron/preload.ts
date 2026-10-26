@@ -99,6 +99,8 @@ const api = {
       ipcRenderer.invoke('movedesk:add', paths),
     restore: (id: string): Promise<boolean> => ipcRenderer.invoke('movedesk:restore', id),
     dragOut: (id: string): void => ipcRenderer.send('movedesk:drag', id),
+    fileMenu: (id: string, filePath: string): Promise<void> =>
+      ipcRenderer.invoke('movedesk:fileMenu', id, filePath),
     onRefreshed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('movedesk:refreshed', h)

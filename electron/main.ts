@@ -377,6 +377,28 @@ function createMoveWindow(): void {
   })
 }
 
+/** 弹系统属性框：先收起分区层，属性框关掉后再恢复 */
+async function openFileProperties(filePath: string): Promise<boolean> {
+  const wasVisible = !!moveWin && !moveWin.isDestroyed() && moveWin.isVisible()
+  try {
+    moveWin?.hide()
+  } catch {
+    /* 忽略 */
+  }
+  try {
+    return await showFileProperties(filePath)
+  } finally {
+    if (wasVisible && moveWin && !moveWin.isDestroyed()) {
+      try {
+        moveWin.showInactive()
+        moveWin.setOpacity(1)
+      } catch {
+        /* 窗口可能已经关了 */
+      }
+    }
+  }
+}
+
 function createMainWindow(): void {
   const workArea = screen.getPrimaryDisplay().workAreaSize
   const height = Math.min(780, Math.max(480, workArea.height - 80))
@@ -1172,6 +1194,31 @@ function registerIpc(): void {
   ipcMain.handle('movedesk:restore', (_e, id: string) => restoreOne(id))
 
   /**
+   * 分区文件右键菜单：用系统原生菜单，不在渲染层画。
+   * 自绘菜单必须依赖窗口形状才点得到，前面已经在这上面栽过两次；
+   * 原生菜单是独立窗口，不受透明层形状影响，永远不会"点不动"。
+   */
+  ipcMain.handle('movedesk:fileMenu', (e, id: string, filePath: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return
+    const menu = Menu.buildFromTemplate([
+      { label: '打开', click: () => void shell.openPath(filePath) },
+      { label: '在文件夹中显示', click: () => shell.showItemInFolder(filePath) },
+      { type: 'separator' },
+      { label: '属性', click: () => void openFileProperties(filePath) },
+      { type: 'separator' },
+      {
+        label: '放回桌面',
+        click: () => {
+          restoreOne(id)
+          win.webContents.send('movedesk:refreshed')
+        }
+      }
+    ])
+    menu.popup({ window: win })
+  })
+
+  /**
    * 把分区里的文件拖出去（原生拖放）。
    * Windows 上拖到桌面默认是「复制」，这里在拖拽发起后盯 10 秒桌面：
    * 一旦出现同名同大小的文件，就把收纳里那份删掉，等效于「移动」。
@@ -1218,29 +1265,7 @@ function registerIpc(): void {
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
   ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
   ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
-  ipcMain.handle('desk:properties', async (_e, p: string) => {
-    // 属性框是系统模态窗口，会被我们的全屏透明层挡住（看起来就像卡死）。
-    // 先把分区层收起来，等属性框关掉（execFile 回调）再恢复。
-    const wasVisible = !!moveWin && !moveWin.isDestroyed() && moveWin.isVisible()
-    try {
-      moveWin?.hide()
-    } catch {
-      /* 忽略 */
-    }
-    try {
-      await showFileProperties(p)
-    } finally {
-      if (wasVisible && moveWin && !moveWin.isDestroyed()) {
-        try {
-          moveWin.showInactive()
-          moveWin.setOpacity(1)
-        } catch {
-          /* 窗口可能已经关了 */
-        }
-      }
-    }
-    return true
-  })
+  ipcMain.handle('desk:properties', (_e, p: string) => openFileProperties(p))
   /**
    * 把窗口裁成"只有面板存在"的形状。
    * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟，

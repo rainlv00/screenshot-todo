@@ -78,7 +78,6 @@ export default function DeskLayer() {
   const [animating, setAnimating] = useState(false)
   const [style, setStyle] = useState<Record<string, PanelStyle>>(loadStyle)
   const [menuCat, setMenuCat] = useState<string | null>(null)
-  const [fileMenu, setFileMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [renameOpen, setRenameOpen] = useState<{ id: string; name: string } | null>(null)
   const [renameVal, setRenameVal] = useState('')
   const [tip, setTip] = useState('')
@@ -293,8 +292,8 @@ export default function DeskLayer() {
   // 窗口形状 = 面板 + 工具条 + 新建按钮，形状外交给系统穿透
   useWindowShape(
     (rects) => window.api.desk.setShape(rects),
-    [visible, pos, style, collapsed, newOpen, menuCat, animating, fileMenu, renameOpen],
-    newOpen || menuCat !== null || animating || !!fileMenu || !!renameOpen
+    [visible, pos, style, collapsed, newOpen, menuCat, animating, renameOpen],
+    newOpen || menuCat !== null || animating || !!renameOpen
   )
 
 
@@ -425,7 +424,7 @@ export default function DeskLayer() {
                       onContextMenu={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        setFileMenu({ id: f.id, x: e.clientX, y: e.clientY })
+                        void window.api.moveDesk.fileMenu(f.id, f.path)
                       }}
                     >
                       {icons[f.path] ? (
@@ -536,62 +535,6 @@ export default function DeskLayer() {
             </div>
           </div>
         </div>
-      )}
-
-      {fileMenu && (
-        <>
-          <div
-            className="dm-file-mask"
-            onClick={() => setFileMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              setFileMenu(null)
-            }}
-          />
-          <div
-            className="dm-file-menu"
-            style={{
-              left: Math.min(fileMenu.x, window.innerWidth - 150),
-              top: Math.min(fileMenu.y, window.innerHeight - 130)
-            }}
-          >
-            <button
-              onClick={() => {
-                void window.api.desk.open(files.find((f) => f.id === fileMenu.id)?.path || '')
-                setFileMenu(null)
-              }}
-            >
-              打开
-            </button>
-            <button
-              onClick={() => {
-                void window.api.desk.reveal(files.find((f) => f.id === fileMenu.id)?.path || '')
-                setFileMenu(null)
-              }}
-            >
-              在文件夹中显示
-            </button>
-            <button
-              onClick={() => {
-                void window.api.desk.properties(files.find((f) => f.id === fileMenu.id)?.path || '')
-                setFileMenu(null)
-              }}
-            >
-              属性
-            </button>
-            <button
-              onClick={async () => {
-                const ok = await window.api.moveDesk.restore(fileMenu.id)
-                setFileMenu(null)
-                await load()
-                setTip(ok ? '已放回桌面' : '放回失败，文件可能被移动了')
-                window.setTimeout(() => setTip(''), 1800)
-              }}
-            >
-              放回桌面
-            </button>
-          </div>
-        </>
       )}
 
       {tip && <div className="desk-tip">{tip}</div>}
