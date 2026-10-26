@@ -293,8 +293,8 @@ export default function DeskLayer() {
   // 窗口形状 = 面板 + 工具条 + 新建按钮，形状外交给系统穿透
   useWindowShape(
     (rects) => window.api.desk.setShape(rects),
-    [visible, pos, style, collapsed, newOpen, menuCat, animating],
-    newOpen || menuCat !== null || animating
+    [visible, pos, style, collapsed, newOpen, menuCat, animating, fileMenu, renameOpen],
+    newOpen || menuCat !== null || animating || !!fileMenu || !!renameOpen
   )
 
 
@@ -341,7 +341,7 @@ export default function DeskLayer() {
                 if (fp) paths.push(fp)
               }
               if (!paths.length) {
-                // 不是外部文件，可能是面板之间拖拽改分类
+                // 面板之间拖拽 → 改分类
                 void dropToCategory(cat.id)
                 return
               }
@@ -403,10 +403,22 @@ export default function DeskLayer() {
                       className="dp-item"
                       draggable
                       onDragStart={(e) => {
-                        // 直接拖就是原生拖出：拖到桌面/资源管理器都行。
-                        // 拖回面板内的场景改成右键「移动到」处理，不再靠修饰键区分。
-                        e.preventDefault()
-                        window.api.moveDesk.dragOut(f.id)
+                        dragFileId.current = f.id
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', f.id)
+                      }}
+                      onDragEnd={async (e) => {
+                        // dropEffect 为 none 说明松手时没有任何窗口接住——也就是被拖出了窗口
+                        // 那就按「离开这个分区」处理，直接放回桌面
+                        if (e.dataTransfer.dropEffect === 'none' && dragFileId.current === f.id) {
+                          dragFileId.current = null
+                          const ok = await window.api.moveDesk.restore(f.id)
+                          await load()
+                          if (ok) {
+                            setTip('已放回桌面')
+                            window.setTimeout(() => setTip(''), 1800)
+                          }
+                        }
                       }}
                       title={`${f.name}\n${fmtSize(f.size)}\n双击打开 · 拖出去可以放回桌面或文件夹`}
                       onDoubleClick={() => void window.api.desk.open(f.path)}

@@ -58,7 +58,15 @@ export default function App() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [bgVer, setBgVer] = useState(1)
   const [loaded, setLoaded] = useState(false)
-  const [flash, setFlash] = useState('')
+  const [flash, setFlashState] = useState('')
+  const flashTimer = useRef<number | null>(null)
+
+  /** 主窗口的提示统一走这里：2 秒后自动消失，避免像之前那样一直挂在界面上 */
+  const setFlash = useCallback((msg: string) => {
+    setFlashState(msg)
+    if (flashTimer.current) window.clearTimeout(flashTimer.current)
+    flashTimer.current = window.setTimeout(() => setFlashState(''), 2000)
+  }, [])
   const [now, setNow] = useState(Date.now())
   const prevBg = useRef('')
 
