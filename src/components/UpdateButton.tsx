@@ -83,7 +83,7 @@ export function UpdateButton() {
 
             {!checking && !hasUpdate && (
               <>
-                <div className="update-title">已是最新版本</div>
+                <div className="update-title">已是最新版本 v{__APP_VERSION__}</div>
                 <div className="pop-hint">暂时没有新版本，过段时间会自动再查</div>
                 <button className="pop-btn subtle" style={{ marginTop: 10 }} onClick={() => void doCheck(false)}>
                   重新检查
