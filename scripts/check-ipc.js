@@ -25,8 +25,9 @@ const collect = (src, re) => {
   return out
 }
 
-const sent = collect(preload, /ipcRenderer\.(?:invoke|send)\('([^']+)'/g)
-const handled = collect(main, /ipcMain\.(?:handle|on)\('([^']+)'/g)
+// \s* 是必须的：很多地方写成 ipcMain.handle(\n  'channel',  —— 换行了
+const sent = collect(preload, /ipcRenderer\.(?:invoke|send)\(\s*'([^']+)'/g)
+const handled = collect(main, /ipcMain\.(?:handle|on)\(\s*'([^']+)'/g)
 
 const missing = [...sent].filter((c) => !handled.has(c)).sort()
 const unused = [...handled].filter((c) => !sent.has(c)).sort()
