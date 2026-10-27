@@ -17,7 +17,8 @@
     "shot": "npm run build && electron . --shot",
     "pack": "node scripts/pack.js",
     "dist": "npm run build && node scripts/pack.js",
-    "pack:all": "npm run build && node scripts/pack.js"
+    "pack:all": "npm run check:ipc && npm run build && node scripts/pack.js",
+    "check:ipc": "node scripts/check-ipc.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
