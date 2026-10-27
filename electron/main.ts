@@ -1192,6 +1192,32 @@ function registerIpc(): void {
   ipcMain.handle('files:restoreOne', (_e, id: string) => restoreOne(id))
   ipcMain.handle('files:storageRoot', () => storageRoot())
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
+  ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
+  ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
+  ipcMain.handle('desk:reveal', (_e, p: string) => shell.showItemInFolder(p))
+
+  /**
+   * 把窗口裁成「只有面板存在」的形状。
+   * 形状外的区域系统根本不认为有窗口，鼠标直接落桌面，零延迟。
+   * 传空数组 = 恢复整窗矩形。
+   */
+  ipcMain.on('desk:shape', (e, rects: { x: number; y: number; width: number; height: number }[]) => {
+    const win = e.sender === moveWin?.webContents ? moveWin : null
+    if (!win || win.isDestroyed()) return
+    try {
+      const list = Array.isArray(rects) ? rects.filter((r) => r.width > 0 && r.height > 0) : []
+      win.setShape(list)
+      // 形状内是正常窗口，形状外系统直接穿透到桌面；
+      // 万一某个平台 setShape 没生效，ignoreMouseEvents(true) 兜底不挡桌面
+      win.setIgnoreMouseEvents(list.length === 0, { forward: true })
+    } catch {
+      try {
+        win.setIgnoreMouseEvents(true, { forward: true })
+      } catch {
+        /* 忽略 */
+      }
+    }
+  })
 
   /* ---- 分区2：搬运模式 ---- */
   ipcMain.handle('movedesk:open', () => createMoveWindow())
@@ -1260,6 +1286,13 @@ function registerIpc(): void {
    * Windows 上拖到桌面默认是「复制」，这里在拖拽发起后盯 10 秒桌面：
    * 一旦出现同名同大小的文件，就把收纳里那份删掉，等效于「移动」。
    */
+  ipcMain.handle('app:checkUpdate', () => checkForUpdate())
+  ipcMain.handle('app:downloadUpdate', async (_e, info) =>
+    downloadUpdate(info, (s) => mainWin?.webContents.send('update:progress', s))
+  )
+  ipcMain.handle('app:installUpdate', () => installUpdate())
+  ipcMain.handle('app:openReleasePage', () => openReleasePage())
+
   ipcMain.handle('app:hotkeyAvailable', (_e, acc: string) => {
     if (!acc || !isValidAccel(acc)) return { ok: false, reason: 'invalid' as const }
     if (registeredHotkeys.includes(acc)) return { ok: true as const }

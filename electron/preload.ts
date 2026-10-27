@@ -48,17 +48,8 @@ const api = {
     deleteCategory: (id: string): Promise<boolean> => ipcRenderer.invoke('files:deleteCategory', id),
     scan: (): Promise<{ added: number; scanned: number }> => ipcRenderer.invoke('files:scan'),
     refreshMissing: (): Promise<number> => ipcRenderer.invoke('files:refreshMissing'),
-    open: (id: string): Promise<void> => ipcRenderer.invoke('files:open', id),
-    reveal: (id: string): Promise<void> => ipcRenderer.invoke('files:reveal', id),
-    getDirs: (): Promise<string[]> => ipcRenderer.invoke('files:getDirs'),
-    setDirs: (dirs: string[]): Promise<void> => ipcRenderer.invoke('files:setDirs', dirs),
-    getAutoScan: (): Promise<boolean> => ipcRenderer.invoke('files:getAutoScan'),
-    setAutoScan: (on: boolean): Promise<void> => ipcRenderer.invoke('files:setAutoScan', on),
     restoreOne: (id: string): Promise<boolean> => ipcRenderer.invoke('files:restoreOne', id),
     storageRoot: (): Promise<string> => ipcRenderer.invoke('files:storageRoot'),
-    openWindow: (): Promise<void> => ipcRenderer.invoke('files:openWindow'),
-    closeAndRestore: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
-      ipcRenderer.invoke('files:closeAndRestore'),
     onWindowClosed: (cb: () => void): (() => void) => {
       const h = () => cb()
       ipcRenderer.on('files:closed', h)
@@ -74,7 +65,6 @@ const api = {
       ipcRenderer.invoke('desk:icon', p, ext, isDir),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
-    setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
     setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
       ipcRenderer.send('desk:shape', rects),
     onClosed: (cb: () => void): (() => void) => {
@@ -108,9 +98,6 @@ const api = {
         ipcRenderer.removeListener('movedesk:refreshed', h)
       }
     },
-    restoreAllAndClose: (): Promise<{ restored: number; failed: number; cancelled: boolean }> =>
-      ipcRenderer.invoke('movedesk:restoreAllAndClose'),
-    setInteractive: (on: boolean): void => ipcRenderer.send('desk:interactive', on),
     setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
       ipcRenderer.send('desk:shape', rects),
     onClosed: (cb: () => void): (() => void) => {
