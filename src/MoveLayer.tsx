@@ -102,6 +102,31 @@ export default function DeskLayer() {
       return {}
     }
   })
+  /** 位置同时写 localStorage（即时）和数据库（可靠，清缓存也不丢） */
+  const persistPos = useCallback((next: Record<string, Pos>): void => {
+    try {
+      localStorage.setItem(POS_KEY, JSON.stringify(next))
+    } catch {
+      /* 存不了不影响使用 */
+    }
+    void window.api.desk.setPanelPos(JSON.stringify(next))
+  }, [])
+
+  // 启动时以数据库为准，覆盖可能过期的 localStorage
+  useEffect(() => {
+    void window.api.desk
+      .panelPos()
+      .then((json) => {
+        try {
+          const saved = JSON.parse(json || '{}') as Record<string, Pos>
+          if (saved && Object.keys(saved).length) setPos(saved)
+        } catch {
+          /* 忽略 */
+        }
+      })
+      .catch(() => undefined)
+  }, [])
+
   const [dragOverCat, setDragOverCat] = useState<string | null>(null)
   const [animating, setAnimating] = useState(false)
   const [style, setStyle] = useState<Record<string, PanelStyle>>(loadStyle)
@@ -202,11 +227,7 @@ export default function DeskLayer() {
       setAnimating(false)
       if (moved) {
         setPos((cur) => {
-          try {
-            localStorage.setItem(POS_KEY, JSON.stringify(cur))
-          } catch {
-            /* 存储失败不影响使用 */
-          }
+          persistPos(cur)
           return cur
         })
       }
@@ -248,11 +269,7 @@ export default function DeskLayer() {
       patchStyle(id, { width: Math.round(w), height: Math.round(h) })
       setPos((cur) => {
         const next = { ...cur, [id]: { x: Math.round(Math.max(0, x)), y: Math.round(Math.max(0, y)) } }
-        try {
-          localStorage.setItem(POS_KEY, JSON.stringify(next))
-        } catch {
-          /* 忽略 */
-        }
+        persistPos(next)
         return next
       })
     }

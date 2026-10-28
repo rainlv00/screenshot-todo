@@ -55,19 +55,37 @@ function now(): number {
 }
 
 /** 收纳根目录：软件目录下的「收纳」，不可写时退回用户数据目录 */
+/** 安装目录，启动时由 main 注入（打包后在 exe 同级，开发时是项目根） */
+let installDir = ''
+
+export function setInstallDir(dir: string): void {
+  installDir = dir
+}
+
+/** 收纳目录的固定位置：D 盘根目录，和安装目录/卸载完全无关 */
+export const STORAGE_DIR_NAME = '收纳-YUNJIAN'
+
+function ensureDir(dir: string): string {
+  fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
+
 export function storageRoot(): string {
-  // 跟着 userData 走（A 方案里它被固定为 %APPDATA%\截图待办），
-  // 这样程序目录怎么升级都不会碰到用户文件，改名也不会导致找不到
+  // 1) 首选 D://收纳-YUNJIAN —— 独立于安装目录，卸载、升级、删程序目录都不影响
   try {
-    const base = app.getPath('userData')
-    const dir = path.join(base, '收纳')
-    fs.mkdirSync(dir, { recursive: true })
-    return dir
+    const dRoot = 'D:////'
+    if (fs.existsSync(dRoot)) return ensureDir(path.join(dRoot, STORAGE_DIR_NAME))
   } catch {
-    const dir = path.join(process.env.APPDATA || process.cwd(), '截图待办', '收纳')
-    fs.mkdirSync(dir, { recursive: true })
-    return dir
+    /* 没 D 盘或被拒绝 */
   }
+  // 2) 没有 D 盘 → 装在哪个盘就放哪个盘
+  try {
+    if (installDir) return ensureDir(path.join(installDir, STORAGE_DIR_NAME))
+  } catch {
+    /* 安装目录不可写 */
+  }
+  // 3) 最后兜底到用户目录
+  return ensureDir(path.join(process.env.APPDATA || process.cwd(), '云笺', STORAGE_DIR_NAME))
 }
 
 /** 同名文件自动加 (1)(2) */

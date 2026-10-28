@@ -106,8 +106,22 @@ Section "Uninstall"
   Delete "$DESKTOP\${APPNAME}.lnk"
   RMDir /r "$SMPROGRAMS\${APPNAME}"
 
-  ; 只删程序目录，用户数据在 %APPDATA%\云笺，保留
-  RMDir /r "$INSTDIR"
+  ; 逐项删除程序文件，但**跳过「收纳」目录** —— 里面是用户搬进来的文件，绝不能删
+  FindFirst $0 $1 "$INSTDIR\*"
+  u_loop:
+    StrCmp $1 "" u_done
+    StrCmp $1 "收纳" u_skip
+    IfFileExists "$INSTDIR\$1\*.*" 0 u_file
+      RMDir /r "$INSTDIR\$1"
+      Goto u_skip
+    u_file:
+      Delete "$INSTDIR\$1"
+    u_skip:
+      FindNext $0 $1
+      Goto u_loop
+  u_done:
+  FindClose $0
+  ; 目录本身留着（里面还有收纳），不 RMDir
 
   DeleteRegKey HKCU "${REGKEY}"
   DeleteRegKey HKCU "Software\${APPNAME}"

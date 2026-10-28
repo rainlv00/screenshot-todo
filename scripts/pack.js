@@ -52,10 +52,10 @@ const defaultApp = path.join(OUT, 'resources', 'default_app.asar')
 if (fs.existsSync(defaultApp)) fs.unlinkSync(defaultApp)
 
 // 删掉运行用不到的大文件，减小安装包。
-// dxcompiler.dll 是 DX12 着色器编译器，本应用界面简单，走 D3D11 就够；
-// 若某些老显卡出现白屏，把 WDY_KEEP_DXCOMPILER=1 打开再打包。
+// dxcompiler.dll 必须保留！
+// 它是 DX12 着色器编译器，缺了之后部分机器上 Electron 直接启动崩溃（不是白屏，是进程秒退，无任何报错）。
+// 之前为了省 40MB 删掉过，结果就是「双击无反应」。授权文件可以删，DLL 一律不动。
 const junk = ['LICENSES.chromium.html', 'LICENSE.electron.txt']
-if (process.env.WDY_KEEP_DXCOMPILER !== '1') junk.push('dxcompiler.dll')
 let freed = 0
 for (const f of junk) {
   const p = path.join(OUT, f)

@@ -64,6 +64,10 @@ const api = {
     icon: (p: string, ext: string, isDir: boolean): Promise<string> =>
       ipcRenderer.invoke('desk:icon', p, ext, isDir),
     open: (p: string): Promise<void> => ipcRenderer.invoke('desk:open', p),
+    /** 分区面板位置（JSON 字符串，存库） */
+    panelPos: (): Promise<string> => ipcRenderer.invoke('desk:panelPos'),
+    setPanelPos: (json: string): Promise<boolean> =>
+      ipcRenderer.invoke('desk:setPanelPos', json),
     reveal: (p: string): Promise<void> => ipcRenderer.invoke('desk:reveal', p),
     setShape: (rects: { x: number; y: number; width: number; height: number }[]): void =>
       ipcRenderer.send('desk:shape', rects),

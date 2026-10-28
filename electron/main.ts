@@ -69,7 +69,8 @@ import {
   addFilesByPaths,
   deleteCategoryWithRestore,
   listArchived,
-  archivePendingCount
+  archivePendingCount,
+  setInstallDir
 } from './files'
 import { getIconsHidden, setIconsHidden } from './deskIcons'
 
@@ -83,6 +84,53 @@ const REAL_EXE = process.env.PORTABLE_EXECUTABLE_FILE || app.getPath('exe')
 const PROJECT_ROOT = isDev
   ? path.join(__dirname, '..')
   : process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(REAL_EXE)
+/**
+ * 收纳目录迁移到固定位置 D://收纳-YUNJIAN。
+ *
+ * 注意：**同步复制会把主线程卡死**，窗口迟迟不出来，用户看到的就是「双击没反应」。
+ * 所以这里只做「确保目录存在」这件快事，真正的搬运放到窗口显示之后异步做。
+ */
+function migrateStorageDir(): void {
+  try {
+    const base = app.isPackaged ? path.dirname(REAL_EXE) : PROJECT_ROOT
+    setInstallDir(base)
+    const target = storageRoot()
+
+    // 延后 3 秒（此时窗口已经出来了），再在后台把老数据搬过来
+    setTimeout(() => {
+      try {
+        const hasContent = (dir: string): boolean => {
+          try {
+            return fs.existsSync(dir) && fs.readdirSync(dir).length > 0
+          } catch {
+            return false
+          }
+        }
+        if (hasContent(target)) return
+
+        const sources = [
+          path.join(app.getPath('userData'), '收纳'),
+          path.join(base, '收纳'),
+          path.join(app.getPath('userData'), '云笺', '收纳')
+        ]
+        for (const src of sources) {
+          if (!hasContent(src)) continue
+          if (path.normalize(src) === path.normalize(target)) break
+          // 异步复制，绝不阻塞主线程
+          void fs.promises
+            .cp(src, target, { recursive: true, force: false })
+            .catch(() => undefined)
+          break
+        }
+      } catch {
+        /* 忽略 */
+      }
+    }, 3000)
+  } catch {
+    /* 忽略 */
+  }
+}
+
 /**
  * A 方案：数据目录**固定**在改名前的路径 %APPDATA%\截图待办，
  * 产品名改成「云笺」只影响界面，不碰已有数据。
@@ -418,9 +466,29 @@ function createMainWindow(): void {
   const workArea = screen.getPrimaryDisplay().workAreaSize
   const height = Math.min(780, Math.max(480, workArea.height - 80))
 
+  // 记住上次的位置和大小；没有记录就用默认尺寸由系统居中
+  const saved = (() => {
+    try {
+      const raw = getSetting('main_bounds', '')
+      if (!raw) return null
+      const b = JSON.parse(raw) as { x?: number; y?: number; width?: number; height?: number }
+      if (typeof b.x !== 'number' || typeof b.y !== 'number') return null
+      // 屏幕变过/分辨率换过，保证窗口还在可见范围内
+      const displays = screen.getAllDisplays()
+      const visible = displays.some((d) => {
+        const a = d.workArea
+        return b.x! < a.x + a.width - 40 && b.x! + (b.width ?? 420) > a.x + 40 && b.y! < a.y + a.height - 40 && b.y! + (b.height ?? 600) > a.y
+      })
+      return visible ? b : null
+    } catch {
+      return null
+    }
+  })()
+
   mainWin = new BrowserWindow({
-    width: 420,
-    height,
+    width: saved?.width ?? 420,
+    height: saved?.height ?? height,
+    ...(saved ? { x: saved.x, y: saved.y } : {}),
     minWidth: 320,
     minHeight: 360,
     show: false,
@@ -446,6 +514,23 @@ function createMainWindow(): void {
     applyWindowPrefs()
     mainWin?.show()
   })
+
+  // 移动或缩放后记住，下次开机直接摆回原处（防抖 600ms，拖动时不狂写库）
+  let mainBoundsTimer: NodeJS.Timeout | null = null
+  const rememberMainBounds = (): void => {
+    if (mainBoundsTimer) clearTimeout(mainBoundsTimer)
+    mainBoundsTimer = setTimeout(() => {
+      try {
+        if (mainWin && !mainWin.isDestroyed() && !mainWin.isMinimized()) {
+          setSetting('main_bounds', JSON.stringify(mainWin.getBounds()))
+        }
+      } catch {
+        /* 忽略 */
+      }
+    }, 600)
+  }
+  mainWin.on('moved', rememberMainBounds)
+  mainWin.on('resized', rememberMainBounds)
 
   mainWin.on('close', (e) => {
     if (!isQuitting) {
@@ -1191,6 +1276,19 @@ function registerIpc(): void {
   ipcMain.handle('files:refreshMissing', () => refreshMissing())
   ipcMain.handle('files:restoreOne', (_e, id: string) => restoreOne(id))
   ipcMain.handle('files:storageRoot', () => storageRoot())
+  // 分区面板的位置和尺寸，存库比 localStorage 可靠（清缓存/更新不会丢）
+  ipcMain.handle('desk:panelPos', () =>
+    getSetting('desk_panel_pos', '{}')
+  )
+  ipcMain.handle('desk:setPanelPos', (_e, json: string) => {
+    try {
+      setSetting('desk_panel_pos', json)
+    } catch {
+      /* 忽略 */
+    }
+    return true
+  })
+
   ipcMain.handle('desk:open', (_e, p: string) => shell.openPath(p))
   ipcMain.handle('preview:open', (_e, img: string, title: string) => createPreviewWindow(img, title))
   ipcMain.handle('desk:icon', (_e, p: string, ext: string, isDir: boolean) => getFileIconUrl(p, ext, isDir))
@@ -1515,6 +1613,7 @@ if (!app.requestSingleInstanceLock()) {
       return
     }
     migrateLegacyData()
+    migrateStorageDir()
     initDb(DATA_DIR)
     ensurePresetCategories()
 
