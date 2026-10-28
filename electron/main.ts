@@ -141,20 +141,20 @@ function pinUserDataDir(): void {
     const root = app.getPath('appData')
     const legacy = path.join(root, '截图待办')
     const renamed = path.join(root, '云笺')
-    // 万一有人装过会迁移的 1.1.0，数据被搬到了「云笺」，这里搬回来
+    // 万一有人装过会迁移的 1.1.0，数据被搬到了「云笺」，这里搬回来。
+    // 只做 rename（同盘瞬间完成）；跨盘 rename 失败时不复制 —— 复制整个 userData
+    // 会把主线程卡死（之前就是这类同步 IO 导致「双击没反应」），
+    // 改为直接沿用「云笺」这个目录，数据和功能都正常。
+    let target = legacy
     if (!fs.existsSync(legacy) && fs.existsSync(renamed)) {
       try {
         fs.renameSync(renamed, legacy)
       } catch {
-        try {
-          fs.cpSync(renamed, legacy, { recursive: true })
-        } catch {
-          /* 搬不动就继续用旧路径，用户数据仍在新目录里，不会丢 */
-        }
+        target = renamed
       }
     }
-    fs.mkdirSync(legacy, { recursive: true })
-    app.setPath('userData', legacy)
+    fs.mkdirSync(target, { recursive: true })
+    app.setPath('userData', target)
   } catch {
     /* 失败就沿用默认 userData，功能不受影响 */
   }
@@ -176,17 +176,24 @@ const LEGACY_DATA_DIR = path.join(PROJECT_ROOT, 'data')
  * 老版本数据在 exe 同级 data/ 里。升级后自动搬到用户目录，旧目录留着当备份。
  * 只搬一次：新目录已经有 tasks.db 就不动。
  */
-function migrateLegacyData(): void {
+async function migrateLegacyData(): Promise<void> {
   try {
     if (path.normalize(LEGACY_DATA_DIR) === path.normalize(DATA_DIR)) return
     if (!fs.existsSync(path.join(LEGACY_DATA_DIR, 'tasks.db'))) return
     if (fs.existsSync(path.join(DATA_DIR, 'tasks.db'))) return
 
+    // 先试 rename（同盘瞬间完成）；跨盘才复制，且必须用异步版本，
+    // 同步 cpSync 会阻塞主线程，窗口迟迟不出来。
     fs.mkdirSync(DATA_DIR, { recursive: true })
-    fs.cpSync(LEGACY_DATA_DIR, DATA_DIR, {
-      recursive: true,
-      filter: (src) => !src.endsWith('-wal') && !src.endsWith('-shm')
-    })
+    try {
+      fs.renameSync(LEGACY_DATA_DIR, DATA_DIR)
+    } catch {
+      await fs.promises.cp(LEGACY_DATA_DIR, DATA_DIR, {
+        recursive: true,
+        force: false,
+        filter: (src) => !src.endsWith('-wal') && !src.endsWith('-shm')
+      })
+    }
     fs.appendFileSync(
       path.join(DATA_DIR, '..', 'migrate.log'),
       `${new Date().toISOString()} 已从 ${LEGACY_DATA_DIR} 迁移数据\n`
@@ -529,8 +536,10 @@ function createMainWindow(): void {
       }
     }, 600)
   }
-  mainWin.on('moved', rememberMainBounds)
-  mainWin.on('resized', rememberMainBounds)
+  // 注意：Windows 上 Electron 只发 move / resize，不发 moved / resized
+  // （那两个是 macOS 的名字）。挂错了就永远存不下位置。
+  mainWin.on('move', rememberMainBounds)
+  mainWin.on('resize', rememberMainBounds)
 
   mainWin.on('close', (e) => {
     if (!isQuitting) {
@@ -1534,7 +1543,7 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', () => showMain())
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // 图标自测：把桌面快捷方式的图标导出来看看到底取到什么
     if (process.argv.includes('--icon-selftest')) {
       void (async () => {
@@ -1612,7 +1621,7 @@ if (!app.requestSingleInstanceLock()) {
       app.quit()
       return
     }
-    migrateLegacyData()
+    await migrateLegacyData()
     migrateStorageDir()
     initDb(DATA_DIR)
     ensurePresetCategories()

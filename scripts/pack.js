@@ -140,5 +140,6 @@ if (fs.existsSync(rcedit) && fs.existsSync(exe)) {
 const doc = path.join(ROOT, 'docs', '使用说明.txt')
 if (fs.existsSync(doc)) fs.copyFileSync(doc, path.join(OUT, '使用说明.txt'))
 
-fs.mkdirSync(path.join(OUT, 'data'), { recursive: true })
+// 不再在包里建空的 data 目录：数据已经固定放在 %APPDATA%\截图待办\data，
+// 留个空壳只会让人误以为数据还在程序旁边。
 step('完成 -> ' + OUT)
