@@ -4735,3 +4735,9 @@ html.preview-mode #root {
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
+
+/* 文件夹图标（自己画，不用系统 SHGetFileInfo —— 部分机器会把文件夹画成磁盘） */
+.dp-folder {
+  flex: 0 0 auto;
+  pointer-events: none;
+}

@@ -166,6 +166,9 @@ export default function DeskLayer() {
     void (async () => {
       for (const f of files) {
         if (cancelled) return
+        // 文件夹统一用自己画的图标：系统的 SHGetFileInfo 在部分机器上
+        // 会给文件夹返回「磁盘」图标，不能依赖
+        if (f.isDir) continue
         if (iconRef.current[f.path] || iconPending.current.has(f.path)) continue
         iconPending.current.add(f.path)
         try {
@@ -534,7 +537,9 @@ export default function DeskLayer() {
                         void window.api.moveDesk.fileMenu(f.id, f.path)
                       }}
                     >
-                      {icons[f.path] ? (
+                      {f.isDir ? (
+                        <FolderGlyph />
+                      ) : icons[f.path] ? (
                         <img className="dp-ico" src={icons[f.path]} alt="" draggable={false} />
                       ) : (
                         <span className="dp-ext" style={{ background: `${color}26`, color }}>
@@ -786,5 +791,25 @@ export default function DeskLayer() {
         </div>
       )}
     </div>
+  )
+}
+
+/** 文件夹图标：34×34，和系统图标视觉重量对齐。不依赖 shell 图标，避免部分机器返回磁盘图 */
+function FolderGlyph(): React.ReactElement {
+  return (
+    <svg className="dp-folder" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      {/* 后片（标签） */}
+      <path
+        d="M4 10.5c0-1.1.9-2 2-2h6.2c.6 0 1.2.3 1.6.8l1.3 1.7H26c1.1 0 2 .9 2 2v1.2H4z"
+        fill="#c9922f"
+      />
+      {/* 前片 */}
+      <path
+        d="M4 13.2h26v11.3c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2z"
+        fill="#f0b64a"
+      />
+      {/* 高光 */}
+      <path d="M4 13.2h26v2.1H4z" fill="#ffd081" opacity="0.7" />
+    </svg>
   )
 }
