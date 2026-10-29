@@ -101,23 +101,32 @@ function uniquePath(dir: string, name: string): string {
   return p
 }
 
-/** 跨盘 rename 会报 EXDEV，退化成复制+删除 */
+/**
+ * 把文件/文件夹从 src 搬到 dst。
+ *
+ * 收纳目录现在在 D 盘、桌面在 C 盘，跨盘 rename 必然 EXDEV，只能退化成「复制+删除」。
+ * 这里必须用 cpSync（recursive）而不是 copyFileSync ——
+ * copyFileSync 遇到文件夹会直接报 EISDIR，导致「文件夹拖不进去」且没有任何提示。
+ */
 function safeMove(src: string, dst: string): boolean {
   try {
     fs.renameSync(src, dst)
     return true
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code
-    if (code === 'EXDEV') {
-      try {
-        fs.copyFileSync(src, dst)
-        fs.unlinkSync(src)
-        return true
-      } catch {
-        return false
-      }
+    // EXDEV=跨盘；EPERM/EBUSY/EACCES=文件被占用或权限不足（Windows 上常见）
+    if (code !== 'EXDEV' && code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES') {
+      archiveDebug(`搬移失败(${code}): ${src} -> ${dst}`)
+      return false
     }
-    return false
+    try {
+      fs.cpSync(src, dst, { recursive: true, force: true })
+      fs.rmSync(src, { recursive: true, force: true })
+      return true
+    } catch (err) {
+      archiveDebug(`跨盘搬移失败: ${src} -> ${dst} (${(err as Error).message})`)
+      return false
+    }
   }
 }
 
