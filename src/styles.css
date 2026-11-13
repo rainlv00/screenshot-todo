@@ -3517,13 +3517,11 @@ html.desk-mode #root {
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 2px 8px 8px;
-  max-height: 168px;
   overflow-y: auto;
 }
 
 .dp-body.is-list {
   grid-template-columns: 1fr;
-  max-height: 240px;
 }
 
 .dp-item {
@@ -3574,9 +3572,21 @@ html.desk-mode #root {
 }
 
 .dp-body.is-list .dp-ext {
-  width: 26px;
-  height: 26px;
-  font-size: 8px;
+  /* 和真实图标同一个尺寸，不能一个 26 一个 34，否则同一栏里看着忽大忽小 */
+  width: 34px;
+  height: 34px;
+  font-size: 9px;
+  flex: 0 0 auto;
+}
+
+/* 行高固定，图标不被压扁 */
+.dp-body.is-list .dp-item {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.dp-body.is-list .dp-name {
+  min-width: 0;
 }
 
 .dp-body.is-list .dp-name {
@@ -3935,6 +3945,8 @@ html.desk-mode #root {
 .desk-panel {
   display: flex;
   flex-direction: column;
+  /* 没有手动拖高度时，最高到屏幕 78%，再多就滚动，不会窜出屏幕 */
+  max-height: 78vh;
 }
 
 .desk-panel .dp-body {
@@ -4734,4 +4746,355 @@ html.preview-mode #root {
   border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* 列表视图的图标原来只有 26px，WPS 那种「白纸+彩色徽标」的图标缩到 26px 后
+   白纸轮廓糊没了，只剩一块彩色方块，看着跟宫格视图完全是两种图标。
+   统一成 34px，行高跟着放大一点。 */
+.dp-body.is-list .dp-ico {
+  width: 34px;
+  height: 34px;
+}
+
+.dp-body.is-list .dp-item {
+  padding: 6px 6px;
+}
+
+/* ================= 手动新建待办 ================= */
+.new-task {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  margin-bottom: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.nt-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.nt-input::placeholder {
+  color: var(--muted);
+}
+
+.nt-repeat {
+  flex: 0 0 auto;
+  height: 26px;
+  max-width: 132px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nt-repeat.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.nt-add {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.nt-add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nt-repeat-pop {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: calc(100% + 6px);
+  z-index: 40;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+}
+
+/* ================= 无图任务的占位图块 ================= */
+.thumb.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  background: rgba(125, 135, 155, 0.16);
+}
+
+.thumb.ph span {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
+}
+
+.thumb.ph.color-red {
+  background: rgba(225, 92, 92, 0.18);
+}
+.thumb.ph.color-red span {
+  color: #d05555;
+}
+.thumb.ph.color-orange {
+  background: rgba(230, 150, 60, 0.18);
+}
+.thumb.ph.color-orange span {
+  color: #cc8434;
+}
+.thumb.ph.color-green {
+  background: rgba(70, 170, 110, 0.18);
+}
+.thumb.ph.color-green span {
+  color: #3f9b68;
+}
+
+/* ================= 重复标签 / 已完成次数 ================= */
+.rp-tag {
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--chip);
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.done-count {
+  /* 靠右贴边，不跟标题抢宽度 */
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ================= 重复规则选择器 ================= */
+.rp {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.rp-kinds {
+  display: flex;
+  gap: 4px;
+}
+
+.rp-kind {
+  flex: 1 1 0;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.rp-kind.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.rp-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.rp-chip {
+  flex: 1 1 0;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.rp-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.rp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.rp-day {
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 10.5px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.rp-day.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.rp-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.rp-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rp-float {
+  position: fixed;
+  z-index: 60;
+  width: 244px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
+}
+
+.icon-btn.on {
+  color: var(--accent);
+}
+
+/* 宫格视图里无图任务的占位块 */
+.g-thumb.g-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(125, 135, 155, 0.16);
+}
+
+.g-thumb.g-ph span {
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
+}
+
+.g-thumb.g-ph.color-red {
+  background: rgba(225, 92, 92, 0.18);
+}
+.g-thumb.g-ph.color-red span {
+  color: #d05555;
+}
+.g-thumb.g-ph.color-orange {
+  background: rgba(230, 150, 60, 0.18);
+}
+.g-thumb.g-ph.color-orange span {
+  color: #cc8434;
+}
+.g-thumb.g-ph.color-green {
+  background: rgba(70, 170, 110, 0.18);
+}
+.g-thumb.g-ph.color-green span {
+  color: #3f9b68;
+}
+
+/* 占位图块上的「+」提示 */
+.thumb.ph {
+  position: relative;
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.thumb.ph .ph-plus {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 12px;
+  font-style: normal;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.g-thumb.g-ph {
+  border: 1px dashed var(--line);
+  cursor: pointer;
+}
+
+/* ================= 分区面板滚动条 ================= */
+/* 默认的 Windows 滚动条带白色轨道和上下三角箭头，放在半透明面板上很突兀。
+   这里只留一条细滑块，轨道透明，去掉箭头。
+
+   注意：**不要**写 scrollbar-width / scrollbar-color。
+   Chromium 一旦看到 standard 属性，就会忽略整套 ::-webkit-scrollbar 规则，
+   那样 scrollbar-button 的 display:none 也失效，箭头还在。 */
+
+.dp-body::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.dp-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dp-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+}
+
+/* 平时几乎看不见，鼠标进面板才稍微显形，否则找不到滑块 */
+.dp-body:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.dp-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* 上下那两个三角按钮 */
+.dp-body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.dp-body::-webkit-scrollbar-corner {
+  background: transparent;
 }

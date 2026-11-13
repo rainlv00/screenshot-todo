@@ -38,11 +38,14 @@ import {
   reorderTasks,
   setPinned,
   setColor,
+  addManualTask,
+  setTaskImage,
+  setRepeat,
   getDb
 } from './db'
 import { saveImage, deleteImageFiles, sha1 } from './store'
 import { startDailyReminder, type ReminderCtl } from './reminder'
-import type { Prefs, ToastPayload } from '../shared/types'
+import type { RepeatRule, Prefs, ToastPayload } from '../shared/types'
 import { checkForUpdate, downloadUpdate, installUpdate, openReleasePage } from './updater'
 import {
   ensurePresetCategories,
@@ -1161,6 +1164,36 @@ function registerIpc(): void {
     return { pending, done, pendingCount: countPending() }
   })
 
+  ipcMain.handle('tasks:addManual', (_e, title: string, rule?: RepeatRule) => {
+    const t = addManualTask(String(title ?? '').slice(0, 80), rule)
+    broadcastChanged()
+    return t
+  })
+  ipcMain.handle('tasks:attachImage', async (_e, id: string) => {
+    const picked = await dialog.showOpenDialog(mainWin ?? undefined!, {
+      title: '给这条待办添加图片',
+      properties: ['openFile'],
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] }]
+    })
+    if (picked.canceled || !picked.filePaths[0]) return false
+
+    const src = picked.filePaths[0]
+    const buf = fs.readFileSync(src)
+    const img = nativeImage.createFromBuffer(buf)
+    if (img.isEmpty()) return false
+
+    const saved = saveImage(DATA_DIR, buf, img)
+    // 同一张图已经属于别的任务时不覆盖哈希，避免唯一索引冲突
+    const hash = hashExists(saved.hash) ? `manual-img:${saved.id}` : saved.hash
+    setTaskImage(id, saved.imagePath, saved.thumbPath, hash)
+    broadcastChanged()
+    return true
+  })
+  ipcMain.handle('tasks:setRepeat', (_e, id: string, rule: RepeatRule) => {
+    setRepeat(id, rule)
+    broadcastChanged()
+    return true
+  })
   ipcMain.handle('tasks:setDone', (_e, id: string, done: boolean) => {
     const changed = setDone(id, done)
     if (changed) {
@@ -1362,7 +1395,9 @@ function registerIpc(): void {
   ipcMain.handle('movedesk:pending', () => archivePendingCount())
   ipcMain.handle('movedesk:archive', () => archiveDesktop())
   /** 把指定路径的文件搬进来（拖拽/单个收录用） */
-  ipcMain.handle('movedesk:add', (_e, paths: string[]) => addFilesByPaths(paths))
+  ipcMain.handle('movedesk:add', (_e, paths: string[], categoryId?: string) =>
+    addFilesByPaths(paths, categoryId)
+  )
   ipcMain.handle('movedesk:restore', (_e, id: string) => restoreOne(id))
 
   /**

@@ -10,6 +10,7 @@ interface Props {
   onRemove: (task: Task) => void
   onPin: (task: Task) => void
   onColor: (task: Task, color: MarkColor) => void
+  onAttachImage: (task: Task) => void
   onPointerDown: (e: React.PointerEvent, id: string) => void
   dragging: boolean
   dragOver: boolean
@@ -27,6 +28,7 @@ export function GridCard({
   onRemove,
   onPin,
   onColor,
+  onAttachImage,
   onPointerDown,
   dragging,
   dragOver
@@ -46,14 +48,27 @@ export function GridCard({
         if (canDrag) onPointerDown(e, task.id)
       }}
     >
-      <img
-        className="g-thumb"
-        src={window.api.imgUrl(task.thumbPath)}
-        alt=""
-        draggable={false}
-        loading="lazy"
-        onClick={() => onPreview(task)}
-      />
+      {task.imagePath ? (
+        <img
+          className="g-thumb"
+          src={window.api.imgUrl(task.thumbPath)}
+          alt=""
+          draggable={false}
+          loading="lazy"
+          onClick={() => onPreview(task)}
+        />
+      ) : (
+        <button
+          className={`g-thumb g-ph color-${task.color}`}
+          title={`${task.title || '未命名'}\n点击添加图片`}
+          onClick={() => onAttachImage(task)}
+        >
+          <span>{(task.title || '待办').trim().slice(0, 1)}</span>
+          <i className="ph-plus" aria-hidden="true">
+            +
+          </i>
+        </button>
+      )}
 
       <span className="g-idx">{index}</span>
 
@@ -99,7 +114,9 @@ export function GridCard({
       </button>
 
       <div className="g-info">
-        <div className="g-title">{task.title || '未命名'}</div>
+        <div className="g-title" title={task.title || '未命名'}>
+          {task.title || '未命名'}
+        </div>
         <div className="g-meta">
           <span className={variant === 'pending' ? `held ${level}` : 'held calm'}>{meta}</span>
           {task.reopenCount > 0 && <span className="g-reopen">拿回{task.reopenCount}</span>}

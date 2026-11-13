@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { BgPickResult, ListResult, Prefs, ToastPayload, UpdateInfo } from '../shared/types'
+import type {
+  RepeatRule,
+  BgPickResult,
+  ListResult,
+  Prefs,
+  Task,
+  ToastPayload,
+  UpdateInfo
+} from '../shared/types'
 
 function imgUrl(relPath: string): string {
   if (!relPath) return ''
@@ -10,6 +18,14 @@ function imgUrl(relPath: string): string {
 const api = {
   list: (): Promise<ListResult> => ipcRenderer.invoke('tasks:list'),
   setDone: (id: string, done: boolean): Promise<boolean> => ipcRenderer.invoke('tasks:setDone', id, done),
+  /** 手动新建（无图）待办 */
+  addManual: (title: string, rule?: RepeatRule): Promise<Task> =>
+    ipcRenderer.invoke('tasks:addManual', title, rule),
+  /** 给待办补一张图（手动新建的后来想加图） */
+  attachImage: (id: string): Promise<boolean> => ipcRenderer.invoke('tasks:attachImage', id),
+  /** 改重复规则 */
+  setRepeat: (id: string, rule: RepeatRule): Promise<boolean> =>
+    ipcRenderer.invoke('tasks:setRepeat', id, rule),
   setTitle: (id: string, title: string): Promise<void> => ipcRenderer.invoke('tasks:setTitle', id, title),
   setDue: (id: string, dueAt: number | null): Promise<void> => ipcRenderer.invoke('tasks:setDue', id, dueAt),
   reorder: (ids: string[]): Promise<void> => ipcRenderer.invoke('tasks:reorder', ids),
@@ -88,8 +104,11 @@ const api = {
     pending: (): Promise<number> => ipcRenderer.invoke('movedesk:pending'),
     archive: (): Promise<{ moved: { name: string; category: string }[]; failed: string[]; scanned: number }> =>
       ipcRenderer.invoke('movedesk:archive'),
-    add: (paths: string[]): Promise<{ moved: { name: string; category: string }[]; failed: string[] }> =>
-      ipcRenderer.invoke('movedesk:add', paths),
+    add: (
+      paths: string[],
+      categoryId?: string
+    ): Promise<{ moved: { name: string; category: string }[]; failed: string[] }> =>
+      ipcRenderer.invoke('movedesk:add', paths, categoryId),
     restore: (id: string): Promise<boolean> => ipcRenderer.invoke('movedesk:restore', id),
     fileMenu: (id: string, filePath: string): Promise<void> =>
       ipcRenderer.invoke('movedesk:fileMenu', id, filePath),

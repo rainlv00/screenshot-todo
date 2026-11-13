@@ -1,5 +1,16 @@
 export type TaskStatus = 'pending' | 'done'
 
+/** 重复方式：一次性 / 每天 / 每周（可多选星期）/ 每月（可多选日期） */
+export type RepeatKind = 'none' | 'daily' | 'weekly' | 'monthly'
+
+export interface RepeatRule {
+  kind: RepeatKind
+  /** 1=周一 … 7=周日，可多选 */
+  weekdays: number[]
+  /** 每月几号，1-31，可多选；遇到小月自动取月末 */
+  days: number[]
+}
+
 export interface Task {
   id: string
   title: string
@@ -23,6 +34,12 @@ export interface Task {
   sortOrder: number
   /** 放置天数（按自然日计算） */
   daysHeld: number
+  /** 重复规则 */
+  repeat: RepeatRule
+  /** 累计完成次数（含重复任务的每一次） */
+  doneCount: number
+  /** 下一次该做的日期（当天 0 点，epoch 秒），一次性任务为 null */
+  nextDue: number | null
 }
 
 export type PanelColor = 'white' | 'gray' | 'black' | 'blue' | 'yellow' | 'green'

@@ -797,7 +797,10 @@ export function archivePendingCount(): number {
 }
 
 /** 批量把指定路径的文件搬进收纳目录（拖拽收录用） */
-export function addFilesByPaths(paths: string[]): {
+export function addFilesByPaths(
+  paths: string[],
+  categoryId?: string
+): {
   moved: { name: string; category: string }[]
   failed: string[]
 } {
@@ -811,7 +814,8 @@ export function addFilesByPaths(paths: string[]): {
   const failed: string[] = []
 
   for (const p of paths) {
-    const item = addFileByPath(p)
+    // 拖到哪个面板就进哪个分区；没指定时按文件名/扩展名猜
+    const item = addFileByPath(p, categoryId)
     if (item) {
       moved.push({ name: item.name, category: catName.get(item.categoryId ?? '') ?? '其他' })
     } else {

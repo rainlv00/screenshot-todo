@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MarkColor, ListResult, Prefs, Task } from '../shared/types'
+import type {RepeatRule,  MarkColor, ListResult, Prefs, Task } from '../shared/types'
 import { TaskCard } from './components/TaskCard'
+import { RepeatPicker } from './components/RepeatPicker'
+import { emptyRule, repeatLabel, ruleReady } from './lib/repeat'
 import { GridCard } from './components/GridCard'
 import { SettingsModal } from './components/SettingsModal'
 import { TopBar } from './components/TopBar'
@@ -44,6 +46,11 @@ const DARK_COLORS = new Set(['gray', 'black', 'blue', 'green'])
 export default function App() {
   const [data, setData] = useState<ListResult>({ pending: [], done: [], pendingCount: 0 })
   const [tab, setTab] = useState<Tab>('pending')
+  // 手动新建：标题 + 重复规则（不自动展开详情，按用户要求）
+  const [newTitle, setNewTitle] = useState('')
+  const [newRule, setNewRule] = useState<RepeatRule>(emptyRule())
+  const [newRepeatOpen, setNewRepeatOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -201,6 +208,35 @@ export default function App() {
     }))
     await window.api.removeTask(task.id)
     refresh()
+  }
+
+  async function attachImage(task: Task) {
+    const ok = await window.api.attachImage(task.id)
+    if (ok) {
+      say('图片已添加')
+      refresh()
+    }
+  }
+
+  async function changeRepeat(task: Task, rule: RepeatRule) {
+    await window.api.setRepeat(task.id, rule)
+    refresh()
+  }
+
+  async function createManual() {
+    const title = newTitle.trim()
+    if (!title || creating) return
+    if (!ruleReady(newRule)) return
+    setCreating(true)
+    try {
+      await window.api.addManual(title, newRule)
+      setNewTitle('')
+      setNewRule(emptyRule())
+      setNewRepeatOpen(false)
+      refresh()
+    } finally {
+      setCreating(false)
+    }
   }
 
   async function pasteNow() {
@@ -373,6 +409,7 @@ export default function App() {
               onRemove={removeTask}
               onPin={togglePin}
               onColor={markColor}
+              onAttachImage={attachImage}
               onPointerDown={beginDrag}
               dragging={dragId === t.id}
               dragOver={overId === t.id}
@@ -394,6 +431,8 @@ export default function App() {
         onRemove={removeTask}
         onPin={togglePin}
         onColor={markColor}
+        onRepeat={changeRepeat}
+        onAttachImage={attachImage}
         onPointerDown={beginDrag}
         dragging={dragId === t.id}
         dragOver={overId === t.id}
@@ -487,6 +526,46 @@ export default function App() {
 
         <main className={`list ${prefs.view === 'grid' ? 'is-grid' : ''}`}>
           {!loaded && <div className="loading" />}
+
+          {loaded && tab === 'pending' && (
+            <div className="new-task">
+              <input
+                className="nt-input"
+                value={newTitle}
+                placeholder="添加待办，回车创建"
+                maxLength={80}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void createManual()
+                  if (e.key === 'Escape') {
+                    setNewTitle('')
+                    setNewRepeatOpen(false)
+                  }
+                }}
+              />
+              <button
+                className={`nt-repeat ${newRule.kind !== 'none' ? 'on' : ''}`}
+                title="设置重复"
+                onClick={() => setNewRepeatOpen((v) => !v)}
+              >
+                {newRule.kind === 'none' ? '重复' : repeatLabel(newRule)}
+              </button>
+              <button
+                className="nt-add"
+                disabled={!newTitle.trim() || creating || !ruleReady(newRule)}
+                onClick={() => void createManual()}
+                title="创建（回车也行）"
+              >
+                添加
+              </button>
+
+              {newRepeatOpen && (
+                <div className="nt-repeat-pop">
+                  <RepeatPicker value={newRule} onChange={setNewRule} onClose={() => setNewRepeatOpen(false)} />
+                </div>
+              )}
+            </div>
+          )}
 
           {loaded && tab === 'pending' && (
             <>

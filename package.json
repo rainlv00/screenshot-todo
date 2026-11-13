@@ -1,7 +1,7 @@
 {
   "name": "yunjian",
   "productName": "云笺",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "private": true,
   "description": "云笺：截图即待办，桌面自归置",
   "author": "XIN",
@@ -18,7 +18,8 @@
     "pack": "node scripts/pack.js",
     "dist": "npm run build && node scripts/pack.js",
     "pack:all": "npm run check:ipc && npm run build && node scripts/pack.js",
-    "check:ipc": "node scripts/check-ipc.js"
+    "check:ipc": "node scripts/check-ipc.js",
+    "test": "node scripts/test.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

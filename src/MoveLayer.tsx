@@ -411,7 +411,8 @@ export default function DeskLayer() {
                 void dropToCategory(cat.id)
                 return
               }
-              const r = (await window.api.moveDesk.add(paths)) as {
+              // 必须带上落点面板的分区 id，否则会被自动归类丢到默认分区
+              const r = (await window.api.moveDesk.add(paths, cat.id)) as {
                 moved: { name: string; category: string }[]
                 failed: string[]
               }
